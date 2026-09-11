@@ -8,6 +8,7 @@ import ToastContainer from '@/components/ToastContainer';
 import ProblemModal from '@/components/ProblemModal';
 import GuestGateModal from '@/components/GuestGateModal';
 import SyncHistoryModal from '@/components/SyncHistoryModal';
+import OnboardingTour from '@/components/OnboardingTour';
 import { Agentation } from "agentation";
 
 const geistSans = Geist({
@@ -66,6 +67,7 @@ export default function RootLayout({
           <GuestGateModal />
           <SyncHistoryModal />
           <ToastContainer />
+          <OnboardingTour />
         </Providers>
         {process.env.NODE_ENV === "development" && <Agentation />}
       </body>

@@ -31,9 +31,9 @@ export default function Sidebar() {
   if (pathname === '/') return null;
 
   const navItems = [
-    { name: 'Companies', href: '/dashboard', icon: LayoutDashboard },
-    { name: 'Statistics', href: '/statistics', icon: BarChart3 },
-    { name: 'Settings', href: '/settings', icon: Settings },
+    { name: 'Companies', href: '/dashboard', icon: LayoutDashboard, tourId: 'tour-nav-companies' },
+    { name: 'Statistics', href: '/statistics', icon: BarChart3, tourId: 'tour-nav-statistics' },
+    { name: 'Settings', href: '/settings', icon: Settings, tourId: 'tour-nav-settings' },
   ];
 
   return (
@@ -82,6 +82,7 @@ export default function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
+              id={item.tourId}
               className={`flex items-center gap-3.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group relative cursor-pointer ${
                 isActive
                   ? 'text-foreground bg-secondary border border-border shadow-inner'

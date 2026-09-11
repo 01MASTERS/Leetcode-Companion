@@ -38,6 +38,11 @@ interface TrackerState {
   syncHistoryModalOpen: boolean;
   openSyncHistoryModal: () => void;
   closeSyncHistoryModal: () => void;
+
+  // Onboarding Tour (Driver.js)
+  tourRunning: boolean;
+  startTour: () => void;
+  stopTour: () => void;
 }
 
 export const useTrackerStore = create<TrackerState>((set) => ({
@@ -71,6 +76,10 @@ export const useTrackerStore = create<TrackerState>((set) => ({
   syncHistoryModalOpen: false,
   openSyncHistoryModal: () => set({ syncHistoryModalOpen: true }),
   closeSyncHistoryModal: () => set({ syncHistoryModalOpen: false }),
+
+  tourRunning: false,
+  startTour: () => set({ tourRunning: true }),
+  stopTour: () => set({ tourRunning: false }),
 
   toasts: [],
   addToast: (message, type) => {

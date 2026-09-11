@@ -80,7 +80,7 @@ export default function Dashboard() {
 
       {/* KPI Cards */}
       {stats && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div id="tour-stats" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {/* Total Solved */}
           <div className="glass border border-border hover:border-amber-500/50 hover:bg-amber-500/[0.04] hover:shadow-xl hover:shadow-amber-500/10 rounded-2xl p-5 flex flex-col justify-between h-28 relative group overflow-hidden transition-all duration-300 hover:-translate-y-1">
             <div className="absolute -top-10 -right-10 w-24 h-24 bg-amber-500/0 group-hover:bg-amber-500/20 rounded-full blur-xl transition-all duration-500 pointer-events-none" />
@@ -138,7 +138,7 @@ export default function Dashboard() {
       {/* Sorting and Filtering Row */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-border pb-4">
         {/* Left: Filter Buttons */}
-        <div className="flex items-center gap-2 bg-muted/40 p-1 border border-border rounded-xl flex-wrap">
+        <div id="tour-filters" className="flex items-center gap-2 bg-muted/40 p-1 border border-border rounded-xl flex-wrap">
           {(
             [
               { id: 'all', label: 'All Companies' },
@@ -189,7 +189,7 @@ export default function Dashboard() {
         </div>
       ) : companies && companies.length > 0 ? (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div id="tour-company-grid" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {companies.map((company) => {
               const isCompleted = company.completionPercentage === 100;
               const isStarted = company.solvedProblems > 0;

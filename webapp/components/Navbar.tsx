@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTrackerStore } from '@/store/useTrackerStore';
-import { Search, Flame, Trophy, ArrowUpRight, RefreshCw, User, LogOut, Settings as SettingsIcon, ChevronDown, Sparkles } from 'lucide-react';
+import { Search, Flame, ArrowUpRight, LogOut, Settings as SettingsIcon, ChevronDown, HelpCircle } from 'lucide-react';
 import { Stats } from '@/types';
 import FreshnessBadge from '@/components/FreshnessBadge';
 
@@ -14,7 +14,7 @@ export default function Navbar() {
   const pathname = usePathname();
   const queryClient = useQueryClient();
   const { data: session, status } = useSession();
-  const { globalSearch, setGlobalSearch, addToast, openGuestGate } = useTrackerStore();
+  const { globalSearch, setGlobalSearch, addToast, openGuestGate, startTour } = useTrackerStore();
   const [searchInput, setSearchInput] = React.useState(globalSearch);
   const [isSyncing, setIsSyncing] = React.useState(false);
   const [theme, setTheme] = React.useState<'dark' | 'light'>('dark');
@@ -130,7 +130,7 @@ export default function Navbar() {
   return (
     <header className="glass-blur h-16 border-b border-border flex items-center justify-between px-6 sticky top-0 z-20 w-full text-foreground select-none">
       {/* Search Input */}
-      <div className="flex-1 max-w-md relative">
+      <div id="tour-search" className="flex-1 max-w-md relative">
         <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-muted-foreground">
           <Search className="h-4 w-4" />
         </div>
@@ -169,6 +169,16 @@ export default function Navbar() {
             <span>{stats.streak}</span>
           </div>
         )}
+
+        {/* Help & Tour Trigger */}
+        <button
+          onClick={() => startTour()}
+          className="p-1.5 rounded-xl hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+          title="Take Guided Tour"
+          aria-label="Take Guided Tour"
+        >
+          <HelpCircle className="h-4 w-4" />
+        </button>
 
         {/* Theme Switch */}
         <label className="ui-switch flex-shrink-0" title={theme === 'light' ? "Switch to Dark Mode" : "Switch to Light Mode"}>
@@ -246,6 +256,17 @@ export default function Navbar() {
                     </span>
                     <span className="text-[10px] font-mono text-muted-foreground">↗</span>
                   </a>
+
+                  <button
+                    onClick={() => {
+                      setUserDropdownOpen(false);
+                      startTour();
+                    }}
+                    className="w-full flex items-center gap-2 px-4 py-2 text-xs text-foreground hover:bg-muted transition-colors text-left cursor-pointer"
+                  >
+                    <HelpCircle className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span>Take Guided Tour</span>
+                  </button>
                 </div>
 
                 <div className="border-t border-border/60 pt-1">

@@ -16,6 +16,7 @@
     "agentation": "^3.0.2",
     "canvas-confetti": "^1.9.4",
     "clsx": "^2.1.1",
+    "driver.js": "^1.8.0",
     "framer-motion": "^12.42.2",
     "lucide-react": "^1.27.0",
     "next": "16.2.12",
