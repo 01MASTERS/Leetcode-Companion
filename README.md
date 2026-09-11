@@ -15,8 +15,6 @@
 
 <br/>
 
-[Explore Live Demo](http://localhost:3000) • [View Roadmap](ROADMAP.md) • [Report Issue](https://github.com/01MASTERS/Leetcode-Companion/issues)
-
 </div>
 
 ---
