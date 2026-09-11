@@ -129,8 +129,8 @@ Build a modern, high-converting public landing page at `/` for new and logged-ou
 
 ---
 
-### 🟡 Phase 4: Automated Upstream Sync Pipeline (The Engine of Approach 2)
-> **Priority:** High (Zero-downtime, automated question updates from upstream)
+### ✅ Phase 4: Automated Upstream Sync Pipeline (Completed)
+> **Status:** Completed (Autonomous GitHub Actions worker, incremental Prisma upsert engine, and `/api/catalog/sync-status` API deployed)
 
 #### Objective
 Build the autonomous GitHub Actions background ingestion worker that polls `snehasishroy/leetcode-companywise-interview-questions` for new commits, extracts modified CSVs, and updates the Supabase cloud database via incremental Prisma upserts without touching user progress or requiring webapp redeployment.
