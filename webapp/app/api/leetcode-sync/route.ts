@@ -2,13 +2,58 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUserId } from '@/lib/auth-helper';
 
+// Helper to extract clean LEETCODE_SESSION cookie token
+function extractSessionCookie(rawInput: string): string {
+  if (!rawInput) return '';
+  let val = rawInput.trim();
+
+  // If user pasted a full Cookie header string like "csrftoken=...; LEETCODE_SESSION=xyz; other=..."
+  if (val.includes('LEETCODE_SESSION=')) {
+    const match = val.match(/LEETCODE_SESSION=([^;,\s]+)/);
+    if (match) {
+      val = match[1].trim();
+    }
+  }
+
+  // If user pasted something with semicolons
+  if (val.includes(';')) {
+    val = val.split(';')[0].trim();
+  }
+
+  // Strip leading LEETCODE_SESSION= if still present
+  val = val.replace(/^LEETCODE_SESSION=/, '').trim();
+
+  // Strip surrounding quotes
+  val = val.replace(/^["']|["']$/g, '').trim();
+
+  return val;
+}
+
+// Helper to clean username (removes URL prefixes, trailing slashes, etc.)
+function cleanUsername(rawUsername: string): string {
+  let u = (rawUsername || '').trim();
+  if (u.includes('leetcode.com')) {
+    const match = u.match(/leetcode\.com\/(?:u\/)?([^/\s?#]+)/);
+    if (match) {
+      u = match[1];
+    }
+  }
+  return u.replace(/^@/, '').replace(/\/$/, '').trim();
+}
+
 // Helper to fetch exact solved question slugs using the session cookie
-async function fetchExactSolvedProblems(cookie: string): Promise<string[]> {
+async function fetchExactSolvedProblems(cookie: string): Promise<{ slugs: string[]; username: string }> {
+  const cleanCookie = extractSessionCookie(cookie);
+  if (!cleanCookie) {
+    throw new Error('LEETCODE_SESSION cookie value is empty or could not be parsed.');
+  }
+
   const res = await fetch('https://leetcode.com/api/problems/all/', {
     method: 'GET',
     headers: {
-      'Cookie': `LEETCODE_SESSION=${cookie}`,
+      'Cookie': `LEETCODE_SESSION=${cleanCookie}`,
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Accept': 'application/json',
     },
   });
 
@@ -18,15 +63,16 @@ async function fetchExactSolvedProblems(cookie: string): Promise<string[]> {
 
   const data = await res.json();
   if (!data.user_name) {
-    throw new Error('LeetCode session cookie has expired or is invalid (user_name is empty)');
+    throw new Error('LeetCode session cookie has expired or is invalid (user_name is empty).');
   }
 
   const pairs = data.stat_status_pairs || [];
-  
-  return pairs
+  const slugs = pairs
     .filter((p: any) => p.status === 'ac')
     .map((p: any) => p.stat.question__title_slug)
     .filter(Boolean);
+
+  return { slugs, username: data.user_name };
 }
 
 // Helper to fetch user solved counts by difficulty
@@ -116,9 +162,44 @@ async function fetchRecentSubmissions(username: string, limit = 50): Promise<Lee
   return json.data?.recentAcSubmissionList || [];
 }
 
+// High-performance batch upsert in chunks to avoid Prisma transaction timeouts
+async function batchUpsertProgress(
+  userId: string,
+  problems: Array<{ id: number; titleSlug: string }>,
+  submissionMap: Map<string, Date>,
+  fallbackDate: Date
+) {
+  const chunkSize = 150;
+  for (let i = 0; i < problems.length; i += chunkSize) {
+    const chunk = problems.slice(i, i + chunkSize);
+    const valuePlaceholders: string[] = [];
+    const params: any[] = [];
+    let paramIdx = 1;
+
+    for (const p of chunk) {
+      const solvedDate = submissionMap.get(p.titleSlug) || fallbackDate;
+      valuePlaceholders.push(
+        `($${paramIdx++}, $${paramIdx++}, TRUE, $${paramIdx++}, '', FALSE, NOW(), NOW())`
+      );
+      params.push(userId, p.id, solvedDate);
+    }
+
+    const sql = `
+      INSERT INTO "UserProblemProgress" ("userId", "problemId", "solved", "solvedAt", "notes", "bookmarked", "createdAt", "updatedAt")
+      VALUES ${valuePlaceholders.join(', ')}
+      ON CONFLICT ("userId", "problemId")
+      DO UPDATE SET "solved" = TRUE, "solvedAt" = EXCLUDED."solvedAt", "updatedAt" = NOW()
+    `;
+
+    await prisma.$executeRawUnsafe(sql, ...params);
+  }
+}
+
 export async function POST(request: Request) {
   try {
-    const { username, action, isSimulation, leetcodeSession } = await request.json();
+    const { username: rawUsername, action, isSimulation, leetcodeSession } = await request.json();
+
+    const username = cleanUsername(rawUsername);
 
     if (!username) {
       return NextResponse.json({ error: 'Username is required' }, { status: 400 });
@@ -177,26 +258,26 @@ export async function POST(request: Request) {
       console.log(`Starting Full Sync for user: ${username}`);
 
       // Clear existing solved states for THIS user to start a fresh sync
-      await prisma.$transaction([
-        prisma.userProblemProgress.updateMany({
-          where: { userId, solved: true },
-          data: { solved: false, solvedAt: null },
-        }),
-        prisma.activityLog.deleteMany({
-          where: { userId },
-        }),
-      ]);
+      await prisma.userProblemProgress.updateMany({
+        where: { userId, solved: true },
+        data: { solved: false, solvedAt: null },
+      });
+      await prisma.activityLog.deleteMany({
+        where: { userId },
+      });
 
       let solvedSlugs: Set<string> = new Set();
       let latestTimestamp = 0;
       let isDemoMode = !!isSimulation;
       let cookieValid = false;
+      let cookieWarning = '';
       const recentSubmissionMap = new Map<string, Date>();
 
-      // Determine session cookie to use
-      const activeCookie = leetcodeSession !== undefined 
-        ? leetcodeSession 
-        : (config.leetcodeUser === username ? config.leetcodeSession : '');
+      // Clean and determine session cookie to use
+      const cleanRawCookie = leetcodeSession !== undefined ? extractSessionCookie(leetcodeSession) : undefined;
+      const activeCookie = cleanRawCookie !== undefined
+        ? cleanRawCookie
+        : (config.leetcodeUser.toLowerCase() === username.toLowerCase() ? config.leetcodeSession : '');
 
       if (isDemoMode || username.toLowerCase() === 'demo' || username.toLowerCase() === 'simulation') {
         isDemoMode = true;
@@ -234,12 +315,13 @@ export async function POST(request: Request) {
         if (activeCookie && activeCookie.trim()) {
           console.log(`Performing Authenticated Cookie Sync...`);
           try {
-            const exactSlugs = await fetchExactSolvedProblems(activeCookie.trim());
+            const { slugs: exactSlugs, username: authedUser } = await fetchExactSolvedProblems(activeCookie.trim());
             exactSlugs.forEach(slug => solvedSlugs.add(slug));
             cookieValid = true;
-            console.log(`Found exactly ${solvedSlugs.size} solved question slugs using session cookie.`);
+            console.log(`Found exactly ${exactSlugs.length} solved question slugs using session cookie for user ${authedUser}.`);
           } catch (cookieError: any) {
-            console.error('Authenticated cookie fetch failed, falling back to public stats sync:', cookieError.message);
+            cookieWarning = cookieError.message;
+            console.warn('Authenticated cookie fetch failed, falling back to public stats sync:', cookieError.message);
           }
         }
 
@@ -271,8 +353,6 @@ export async function POST(request: Request) {
             const neededMedium = Math.max(0, medium - currentMedium);
             const neededHard = Math.max(0, hard - currentHard);
 
-            console.log(`Needed filler problems: Easy: ${neededEasy}, Medium: ${neededMedium}, Hard: ${neededHard}`);
-
             const fetchFillerSlugs = async (diff: string, count: number) => {
               if (count <= 0) return [];
               const rawProblems = await prisma.problem.findMany({
@@ -294,7 +374,6 @@ export async function POST(request: Request) {
             ]);
 
             [...fillEasy, ...fillMed, ...fillHard].forEach(slug => solvedSlugs.add(slug));
-            console.log(`Total filled solved problems set: ${solvedSlugs.size}`);
           } catch (statsErr: any) {
             console.warn('Could not fetch public solved stats:', statsErr.message);
           }
@@ -309,69 +388,54 @@ export async function POST(request: Request) {
 
       console.log(`Matched ${matchedProblems.length} solved problems with database catalog.`);
 
-      // Update user progress in a transaction
+      const fallbackSolvedDate = latestTimestamp > 0 ? new Date(latestTimestamp * 1000) : new Date();
+
+      // High-performance batch upsert
       if (matchedProblems.length > 0) {
-        await prisma.$transaction(async (tx) => {
-          for (const p of matchedProblems) {
-            const solvedAt = recentSubmissionMap.get(p.titleSlug) || (latestTimestamp > 0 ? new Date(latestTimestamp * 1000) : new Date());
-            await tx.userProblemProgress.upsert({
-              where: { userId_problemId: { userId, problemId: p.id } },
-              create: {
-                userId,
-                problemId: p.id,
-                solved: true,
-                solvedAt,
-                notes: '',
-                bookmarked: false,
-              },
-              update: {
-                solved: true,
-                solvedAt,
-              },
-            });
-          }
+        await batchUpsertProgress(userId, matchedProblems, recentSubmissionMap, fallbackSolvedDate);
 
-          // Create activity logs
-          const activities = matchedProblems.map(p => {
-            const solvedDate = recentSubmissionMap.get(p.titleSlug);
-            return {
-              userId,
-              problemId: p.id,
-              action: 'SOLVED',
-              timestamp: solvedDate || new Date(),
-            };
-          });
-          await tx.activityLog.createMany({
-            data: activities,
-          });
+        // Record recent activity logs (cap at 100 to prevent bloating)
+        const activities = matchedProblems.slice(0, 100).map(p => {
+          const solvedDate = recentSubmissionMap.get(p.titleSlug) || fallbackSolvedDate;
+          return {
+            userId,
+            problemId: p.id,
+            action: 'SOLVED',
+            timestamp: solvedDate,
+          };
+        });
+        await prisma.activityLog.createMany({
+          data: activities,
+        });
 
-          // Reset streak
-          const lastSolvedDateStr = latestTimestamp > 0
-            ? new Date(latestTimestamp * 1000).toLocaleDateString('sv-SE')
-            : new Date().toLocaleDateString('sv-SE');
+        // Update streak
+        const lastSolvedDateStr = latestTimestamp > 0
+          ? new Date(latestTimestamp * 1000).toLocaleDateString('sv-SE')
+          : new Date().toLocaleDateString('sv-SE');
 
-          await tx.userStats.upsert({
-            where: { userId },
-            create: { userId, streak: 1, lastSolvedDate: lastSolvedDateStr },
-            update: { streak: 1, lastSolvedDate: lastSolvedDateStr },
-          });
+        await prisma.userStats.upsert({
+          where: { userId },
+          create: { userId, streak: 1, lastSolvedDate: lastSolvedDateStr },
+          update: { streak: 1, lastSolvedDate: lastSolvedDateStr },
         });
       }
 
       // Update sync config in DB
+      const storedCookie = cookieValid ? activeCookie : (config.leetcodeSession || '');
+
       await prisma.userSyncConfig.upsert({
         where: { userId },
         create: {
           userId,
           leetcodeUser: username,
-          leetcodeSession: cookieValid ? (activeCookie || '') : '',
+          leetcodeSession: storedCookie,
           lastSyncedAt: new Date(),
           lastSubmissionTimestamp: latestTimestamp,
           isDemoMode,
         },
         update: {
           leetcodeUser: username,
-          leetcodeSession: cookieValid ? (activeCookie || '') : '',
+          leetcodeSession: storedCookie,
           lastSyncedAt: new Date(),
           lastSubmissionTimestamp: latestTimestamp,
           isDemoMode,
@@ -384,6 +448,7 @@ export async function POST(request: Request) {
         syncedCount: matchedProblems.length,
         isDemoMode,
         hasSessionCookie: cookieValid,
+        cookieWarning: cookieWarning || undefined,
         lastSubmissionTimestamp: latestTimestamp,
       });
     }
@@ -398,23 +463,27 @@ export async function POST(request: Request) {
         return NextResponse.json({
           success: true,
           action: 'incremental',
-          message: 'Currently running in Demo Mode. Incremental sync skipped.',
           syncedCount: 0,
+          message: 'Simulation demo mode active. No live polling.',
         });
       }
 
-      let recentSubs: LeetCodeSubmission[] = cachedRecentSubs;
-      if (recentSubs.length === 0) {
-        try {
-          recentSubs = await fetchRecentSubmissions(username, 20);
-        } catch (e: any) {
-          console.error('Failed to fetch recent submissions for incremental sync:', e.message);
-          return NextResponse.json({ error: 'Failed to query LeetCode GraphQL' }, { status: 502 });
+      const recentSubs = cachedRecentSubs.length > 0 
+        ? cachedRecentSubs 
+        : await fetchRecentSubmissions(username, 50);
+
+      const newSubs: LeetCodeSubmission[] = [];
+      let latestTimestamp = config.lastSubmissionTimestamp;
+
+      for (const sub of recentSubs) {
+        const ts = parseInt(sub.timestamp);
+        if (ts > config.lastSubmissionTimestamp) {
+          newSubs.push(sub);
+          if (ts > latestTimestamp) {
+            latestTimestamp = ts;
+          }
         }
       }
-
-      const newSubs = recentSubs.filter(sub => parseInt(sub.timestamp) > config.lastSubmissionTimestamp);
-      console.log(`Found ${newSubs.length} new submissions since last sync (last timestamp: ${config.lastSubmissionTimestamp}).`);
 
       if (newSubs.length === 0) {
         await prisma.userSyncConfig.update({
@@ -425,8 +494,8 @@ export async function POST(request: Request) {
         return NextResponse.json({
           success: true,
           action: 'incremental',
-          message: 'Already in sync. No new solved problems found.',
           syncedCount: 0,
+          message: 'Already up to date. No new accepted submissions found.',
         });
       }
 
@@ -436,88 +505,66 @@ export async function POST(request: Request) {
         where: {
           titleSlug: { in: newSlugs },
         },
+        select: { id: true, titleSlug: true },
       });
 
-      let latestTimestamp = config.lastSubmissionTimestamp;
+      const submissionDateMap = new Map<string, Date>();
       for (const sub of newSubs) {
-        const ts = parseInt(sub.timestamp);
-        if (ts > latestTimestamp) {
-          latestTimestamp = ts;
-        }
+        submissionDateMap.set(sub.titleSlug, new Date(parseInt(sub.timestamp) * 1000));
       }
 
       if (matchedNewProblems.length > 0) {
-        await prisma.$transaction(async (tx) => {
-          for (const problem of matchedNewProblems) {
-            const sub = newSubs.find(s => s.titleSlug === problem.titleSlug);
-            const solvedDate = sub ? new Date(parseInt(sub.timestamp) * 1000) : new Date();
-            await tx.userProblemProgress.upsert({
-              where: { userId_problemId: { userId, problemId: problem.id } },
-              create: {
-                userId,
-                problemId: problem.id,
-                solved: true,
-                solvedAt: solvedDate,
-                notes: '',
-                bookmarked: false,
-              },
-              update: {
-                solved: true,
-                solvedAt: solvedDate,
-              },
-            });
-          }
+        await batchUpsertProgress(userId, matchedNewProblems, submissionDateMap, new Date());
 
-          const activities = matchedNewProblems.map(p => {
-            const sub = newSubs.find(s => s.titleSlug === p.titleSlug);
-            const solvedDate = sub ? new Date(parseInt(sub.timestamp) * 1000) : new Date();
-            return {
-              userId,
-              problemId: p.id,
-              action: 'SOLVED',
-              timestamp: solvedDate,
-            };
-          });
-          await tx.activityLog.createMany({
-            data: activities,
-          });
-
-          // Update Streak
-          const stats = await tx.userStats.findUnique({ where: { userId } });
-          const todayStr = new Date().toLocaleDateString('sv-SE');
-          if (stats) {
-            let newStreak = stats.streak;
-            const lastSolved = stats.lastSolvedDate;
-
-            if (!lastSolved) {
-              newStreak = 1;
-            } else if (lastSolved !== todayStr) {
-              const lastSolvedDateObj = new Date(lastSolved);
-              const todayDateObj = new Date(todayStr);
-              const diffTime = Math.abs(todayDateObj.getTime() - lastSolvedDateObj.getTime());
-              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-              
-              if (diffDays === 1) {
-                newStreak += 1;
-              } else {
-                newStreak = 1;
-              }
-            }
-
-            await tx.userStats.upsert({
-              where: { userId },
-              create: {
-                userId,
-                streak: newStreak,
-                lastSolvedDate: todayStr,
-              },
-              update: {
-                streak: newStreak,
-                lastSolvedDate: todayStr,
-              },
-            });
-          }
+        const activities = matchedNewProblems.map(p => {
+          const sub = newSubs.find(s => s.titleSlug === p.titleSlug);
+          const solvedDate = sub ? new Date(parseInt(sub.timestamp) * 1000) : new Date();
+          return {
+            userId,
+            problemId: p.id,
+            action: 'SOLVED',
+            timestamp: solvedDate,
+          };
         });
+        await prisma.activityLog.createMany({
+          data: activities,
+        });
+
+        // Update Streak
+        const stats = await prisma.userStats.findUnique({ where: { userId } });
+        const todayStr = new Date().toLocaleDateString('sv-SE');
+        if (stats) {
+          let newStreak = stats.streak;
+          const lastSolved = stats.lastSolvedDate;
+
+          if (!lastSolved) {
+            newStreak = 1;
+          } else if (lastSolved !== todayStr) {
+            const lastSolvedDateObj = new Date(lastSolved);
+            const todayDateObj = new Date(todayStr);
+            const diffTime = Math.abs(todayDateObj.getTime() - lastSolvedDateObj.getTime());
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            if (diffDays === 1) {
+              newStreak += 1;
+            } else {
+              newStreak = 1;
+            }
+          }
+
+          await prisma.userStats.upsert({
+            where: { userId },
+            create: {
+              userId,
+              streak: newStreak,
+              lastSolvedDate: todayStr,
+            },
+            update: {
+              streak: newStreak,
+              lastSolvedDate: todayStr,
+            },
+          });
+        }
       }
 
       await prisma.userSyncConfig.update({

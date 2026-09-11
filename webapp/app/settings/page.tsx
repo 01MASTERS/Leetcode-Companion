@@ -57,7 +57,7 @@ export default function SettingsPage() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        const err: any = new Error(data.error || 'Sync failed');
+        const err: any = new Error(data.details || data.error || 'Sync failed');
         err.isGuest = data.isGuest || res.status === 401;
         throw err;
       }
@@ -73,6 +73,9 @@ export default function SettingsPage() {
           `Sync successful! Marked ${data.syncedCount} questions as solved (${data.isDemoMode ? 'Demo' : 'Real'} mode).`,
           'success'
         );
+        if (data.cookieWarning) {
+          addToast(`Cookie note: ${data.cookieWarning} (Synced via public profile instead)`, 'info');
+        }
       } else {
         addToast(data.message || 'Sync completed with no changes.', 'info');
       }
