@@ -383,7 +383,7 @@ export async function POST(request: Request) {
       const cleanRawCookie = leetcodeSession !== undefined ? extractSessionCookie(leetcodeSession) : undefined;
       const activeCookie = cleanRawCookie !== undefined
         ? cleanRawCookie
-        : (config.leetcodeUser.toLowerCase() === username.toLowerCase() ? config.leetcodeSession : '');
+        : (config.leetcodeSession || '');
 
       // Fetch recent accepted submissions to get real solve timestamps
       try {
@@ -543,8 +543,8 @@ export async function POST(request: Request) {
         });
       }
 
-      // Update sync config in DB
-      const storedCookie = cookieValid ? activeCookie : (config.leetcodeSession || '');
+      // Update sync config in DB: If user provided a cookie, persist it. If not, preserve existing cookie.
+      const storedCookie = cleanRawCookie !== undefined ? cleanRawCookie : (config.leetcodeSession || '');
 
       await prisma.userSyncConfig.upsert({
         where: { userId },
@@ -570,7 +570,8 @@ export async function POST(request: Request) {
         action: 'full',
         syncedCount: matchedProblems.length,
         recentCount: matchedRecentProblems.length,
-        hasSessionCookie: cookieValid,
+        hasSessionCookie: !!storedCookie,
+        cookieValid: cookieValid,
         cookieWarning: cookieWarning || undefined,
         lastSubmissionTimestamp: latestTimestamp,
       });

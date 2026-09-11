@@ -19,10 +19,12 @@ export default function SettingsPage() {
   const { data: stats } = useQuery<Stats>({
     queryKey: ['stats'],
     queryFn: async () => {
-      const res = await fetch('/api/stats');
+      const res = await fetch('/api/stats', { cache: 'no-store' });
       if (!res.ok) throw new Error('Failed to load stats');
       return res.json();
     },
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   const syncConfig = stats?.syncConfig;
@@ -62,8 +64,10 @@ export default function SettingsPage() {
 
   // Prefill the form inputs once the settings configurations load from the DB
   useEffect(() => {
-    if (syncConfig?.leetcodeUser) {
-      setUsername(syncConfig.leetcodeUser);
+    if (syncConfig) {
+      if (syncConfig.leetcodeUser) {
+        setUsername(syncConfig.leetcodeUser);
+      }
       if (syncConfig.hasSessionCookie) {
         setLeetcodeSession('••••••••••••••••');
       }
@@ -98,6 +102,10 @@ export default function SettingsPage() {
       queryClient.invalidateQueries({ queryKey: ['companies'] });
       queryClient.invalidateQueries({ queryKey: ['company'] });
       
+      if (data.hasSessionCookie) {
+        setLeetcodeSession('••••••••••••••••');
+      }
+
       if (data.success) {
         addToast(
           `Sync successful! Marked ${data.syncedCount} questions as solved.`,
