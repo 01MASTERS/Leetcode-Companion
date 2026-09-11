@@ -97,7 +97,7 @@ export async function GET() {
       prisma.userProblemProgress.findMany({
         where: { userId, solved: true, solvedAt: { not: null } },
         orderBy: [{ solvedAt: 'desc' }, { id: 'desc' }],
-        take: 10,
+        take: 20,
         select: {
           problem: {
             select: { id: true, title: true, difficulty: true },

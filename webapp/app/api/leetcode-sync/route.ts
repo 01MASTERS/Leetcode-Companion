@@ -162,12 +162,57 @@ async function fetchRecentSubmissions(username: string, limit = 50): Promise<Lee
   return json.data?.recentAcSubmissionList || [];
 }
 
+// Helper to calculate active streak from recent submission timestamps
+function calculateStreak(timestamps: number[]): { streak: number; lastSolvedDate: string | null } {
+  if (!timestamps || timestamps.length === 0) {
+    return { streak: 0, lastSolvedDate: null };
+  }
+
+  // Deduplicate dates in YYYY-MM-DD format, sorted descending
+  const uniqueDates = Array.from(
+    new Set(timestamps.map((ts) => new Date(ts * 1000).toLocaleDateString('sv-SE')))
+  ).sort((a, b) => b.localeCompare(a));
+
+  if (uniqueDates.length === 0) {
+    return { streak: 0, lastSolvedDate: null };
+  }
+
+  const latestDate = uniqueDates[0];
+  const todayStr = new Date().toLocaleDateString('sv-SE');
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = yesterday.toLocaleDateString('sv-SE');
+
+  // If latest solved date is neither today nor yesterday, streak is broken (0)
+  if (latestDate !== todayStr && latestDate !== yesterdayStr) {
+    return { streak: 0, lastSolvedDate: latestDate };
+  }
+
+  // Count consecutive days
+  let streak = 1;
+  let currentDate = new Date(latestDate);
+
+  for (let i = 1; i < uniqueDates.length; i++) {
+    const prevExpected = new Date(currentDate);
+    prevExpected.setDate(prevExpected.getDate() - 1);
+    const prevExpectedStr = prevExpected.toLocaleDateString('sv-SE');
+
+    if (uniqueDates[i] === prevExpectedStr) {
+      streak++;
+      currentDate = prevExpected;
+    } else {
+      break;
+    }
+  }
+
+  return { streak, lastSolvedDate: latestDate };
+}
+
 // High-performance batch upsert in chunks to avoid Prisma transaction timeouts
 async function batchUpsertProgress(
   userId: string,
   problems: Array<{ id: number; titleSlug: string }>,
-  submissionMap: Map<string, Date>,
-  fallbackDate: Date
+  submissionMap: Map<string, Date>
 ) {
   const chunkSize = 150;
   for (let i = 0; i < problems.length; i += chunkSize) {
@@ -177,9 +222,12 @@ async function batchUpsertProgress(
     let paramIdx = 1;
 
     for (const p of chunk) {
-      const solvedDate = submissionMap.get(p.titleSlug) || fallbackDate;
+      // ONLY problems present in submissionMap receive a solvedAt timestamp.
+      // Non-recent problems (from bulk cookie or counts filler) receive NULL,
+      // ensuring we never assign fake timestamps to historical solves.
+      const solvedDate = submissionMap.get(p.titleSlug) || null;
       valuePlaceholders.push(
-        `($${paramIdx++}, $${paramIdx++}, TRUE, $${paramIdx++}, '', FALSE, NOW(), NOW())`
+        `($${paramIdx++}, $${paramIdx++}, TRUE, $${paramIdx++}::timestamp, '', FALSE, NOW(), NOW())`
       );
       params.push(userId, p.id, solvedDate);
     }
@@ -188,7 +236,10 @@ async function batchUpsertProgress(
       INSERT INTO "UserProblemProgress" ("userId", "problemId", "solved", "solvedAt", "notes", "bookmarked", "createdAt", "updatedAt")
       VALUES ${valuePlaceholders.join(', ')}
       ON CONFLICT ("userId", "problemId")
-      DO UPDATE SET "solved" = TRUE, "solvedAt" = EXCLUDED."solvedAt", "updatedAt" = NOW()
+      DO UPDATE SET 
+        "solved" = TRUE, 
+        "solvedAt" = COALESCE(EXCLUDED."solvedAt", "UserProblemProgress"."solvedAt"), 
+        "updatedAt" = NOW()
     `;
 
     await prisma.$executeRawUnsafe(sql, ...params);
@@ -272,6 +323,8 @@ export async function POST(request: Request) {
       let cookieValid = false;
       let cookieWarning = '';
       const recentSubmissionMap = new Map<string, Date>();
+      let fetchedRecentSubs: LeetCodeSubmission[] = [];
+      const recentTimestamps: number[] = [];
 
       // Clean and determine session cookie to use
       const cleanRawCookie = leetcodeSession !== undefined ? extractSessionCookie(leetcodeSession) : undefined;
@@ -289,24 +342,40 @@ export async function POST(request: Request) {
         
         solvedSlugs = new Set(popularProblems.map(p => p.titleSlug));
         latestTimestamp = Math.floor(Date.now() / 1000);
+
+        // Stagger the first 15 problems across past days so demo mode also has realistic recent solves
+        const now = Date.now();
+        for (let i = 0; i < Math.min(15, popularProblems.length); i++) {
+          const fakeTs = Math.floor((now - i * 3600 * 1000 * 8) / 1000);
+          recentSubmissionMap.set(popularProblems[i].titleSlug, new Date(fakeTs * 1000));
+          recentTimestamps.push(fakeTs);
+          fetchedRecentSubs.push({
+            title: popularProblems[i].title,
+            titleSlug: popularProblems[i].titleSlug,
+            timestamp: `${fakeTs}`,
+          });
+        }
       } else {
         // Fetch recent accepted submissions to get real solve timestamps
         try {
-          const recentSubs = cachedRecentSubs.length > 0 
+          fetchedRecentSubs = cachedRecentSubs.length > 0 
             ? cachedRecentSubs 
             : await fetchRecentSubmissions(username, 50);
 
-          for (const sub of recentSubs) {
-            const ts = parseInt(sub.timestamp);
+          for (const sub of fetchedRecentSubs) {
+            const ts = parseInt(sub.timestamp, 10);
+            if (isNaN(ts) || ts <= 0) continue;
+            recentTimestamps.push(ts);
             if (ts > latestTimestamp) {
               latestTimestamp = ts;
             }
+            // Preserve the newest submission timestamp if problem was solved multiple times
             if (!recentSubmissionMap.has(sub.titleSlug)) {
               recentSubmissionMap.set(sub.titleSlug, new Date(ts * 1000));
             }
             solvedSlugs.add(sub.titleSlug);
           }
-          console.log(`Fetched ${recentSubs.length} recent accepted submissions (${recentSubmissionMap.size} unique solved slugs).`);
+          console.log(`Fetched ${fetchedRecentSubs.length} recent accepted submissions (${recentSubmissionMap.size} unique solved slugs).`);
         } catch (subErr: any) {
           console.warn('Could not fetch recent submissions for timestamps:', subErr.message);
         }
@@ -380,43 +449,69 @@ export async function POST(request: Request) {
         }
       }
 
-      // Find matched problems in our database
+      // Find all matched problems in our database catalog
       const matchedProblems = await prisma.problem.findMany({
         where: { titleSlug: { in: Array.from(solvedSlugs) } },
-        select: { id: true, titleSlug: true },
+        select: { id: true, titleSlug: true, title: true, difficulty: true },
       });
 
       console.log(`Matched ${matchedProblems.length} solved problems with database catalog.`);
 
-      const fallbackSolvedDate = latestTimestamp > 0 ? new Date(latestTimestamp * 1000) : new Date();
+      // Identify problems that were recently solved on LeetCode AND exist in our catalog (preserving order from newest to oldest)
+      const problemBySlug = new Map(matchedProblems.map(p => [p.titleSlug, p]));
+      const matchedRecentProblems: Array<{
+        id: number;
+        title: string;
+        titleSlug: string;
+        difficulty: string;
+        solvedAt: Date;
+      }> = [];
+      const seenRecentSlugs = new Set<string>();
+
+      for (const sub of fetchedRecentSubs) {
+        if (seenRecentSlugs.has(sub.titleSlug)) continue;
+        const p = problemBySlug.get(sub.titleSlug);
+        if (p) {
+          seenRecentSlugs.add(sub.titleSlug);
+          const solvedAt = recentSubmissionMap.get(sub.titleSlug);
+          if (solvedAt) {
+            matchedRecentProblems.push({
+              id: p.id,
+              title: p.title,
+              titleSlug: p.titleSlug,
+              difficulty: p.difficulty,
+              solvedAt,
+            });
+          }
+        }
+      }
+
+      console.log(`Matched ${matchedRecentProblems.length} recent solves with database catalog.`);
 
       // High-performance batch upsert
       if (matchedProblems.length > 0) {
-        await batchUpsertProgress(userId, matchedProblems, recentSubmissionMap, fallbackSolvedDate);
+        await batchUpsertProgress(userId, matchedProblems, recentSubmissionMap);
 
-        // Record recent activity logs (cap at 100 to prevent bloating)
-        const activities = matchedProblems.slice(0, 100).map(p => {
-          const solvedDate = recentSubmissionMap.get(p.titleSlug) || fallbackSolvedDate;
-          return {
+        // Record recent activity logs ONLY for genuinely matched recent problems with real solve timestamps!
+        if (matchedRecentProblems.length > 0) {
+          const activities = matchedRecentProblems.map(p => ({
             userId,
             problemId: p.id,
             action: 'SOLVED',
-            timestamp: solvedDate,
-          };
-        });
-        await prisma.activityLog.createMany({
-          data: activities,
-        });
+            timestamp: p.solvedAt,
+          }));
+          await prisma.activityLog.createMany({
+            data: activities,
+          });
+        }
 
-        // Update streak
-        const lastSolvedDateStr = latestTimestamp > 0
-          ? new Date(latestTimestamp * 1000).toLocaleDateString('sv-SE')
-          : new Date().toLocaleDateString('sv-SE');
+        // Calculate streak from real submission timestamps
+        const { streak, lastSolvedDate } = calculateStreak(recentTimestamps);
 
         await prisma.userStats.upsert({
           where: { userId },
-          create: { userId, streak: 1, lastSolvedDate: lastSolvedDateStr },
-          update: { streak: 1, lastSolvedDate: lastSolvedDateStr },
+          create: { userId, streak, lastSolvedDate },
+          update: { streak, lastSolvedDate },
         });
       }
 
@@ -446,6 +541,7 @@ export async function POST(request: Request) {
         success: true,
         action: 'full',
         syncedCount: matchedProblems.length,
+        recentCount: matchedRecentProblems.length,
         isDemoMode,
         hasSessionCookie: cookieValid,
         cookieWarning: cookieWarning || undefined,
@@ -474,9 +570,12 @@ export async function POST(request: Request) {
 
       const newSubs: LeetCodeSubmission[] = [];
       let latestTimestamp = config.lastSubmissionTimestamp;
+      const recentTimestamps: number[] = [];
 
       for (const sub of recentSubs) {
-        const ts = parseInt(sub.timestamp);
+        const ts = parseInt(sub.timestamp, 10);
+        if (isNaN(ts) || ts <= 0) continue;
+        recentTimestamps.push(ts);
         if (ts > config.lastSubmissionTimestamp) {
           newSubs.push(sub);
           if (ts > latestTimestamp) {
@@ -499,72 +598,71 @@ export async function POST(request: Request) {
         });
       }
 
-      const newSlugs = newSubs.map(s => s.titleSlug);
+      const newSlugs = Array.from(new Set(newSubs.map(s => s.titleSlug)));
       
       const matchedNewProblems = await prisma.problem.findMany({
         where: {
           titleSlug: { in: newSlugs },
         },
-        select: { id: true, titleSlug: true },
+        select: { id: true, titleSlug: true, title: true, difficulty: true },
       });
 
+      const problemBySlug = new Map(matchedNewProblems.map(p => [p.titleSlug, p]));
       const submissionDateMap = new Map<string, Date>();
+
       for (const sub of newSubs) {
-        submissionDateMap.set(sub.titleSlug, new Date(parseInt(sub.timestamp) * 1000));
+        const ts = parseInt(sub.timestamp, 10);
+        if (!submissionDateMap.has(sub.titleSlug)) {
+          submissionDateMap.set(sub.titleSlug, new Date(ts * 1000));
+        }
       }
 
-      if (matchedNewProblems.length > 0) {
-        await batchUpsertProgress(userId, matchedNewProblems, submissionDateMap, new Date());
+      // Preserve newest-first order matching our catalog
+      const matchedNewProblemsOrdered: Array<{
+        id: number;
+        title: string;
+        titleSlug: string;
+        difficulty: string;
+        solvedAt: Date;
+      }> = [];
+      const seenSlugs = new Set<string>();
 
-        const activities = matchedNewProblems.map(p => {
-          const sub = newSubs.find(s => s.titleSlug === p.titleSlug);
-          const solvedDate = sub ? new Date(parseInt(sub.timestamp) * 1000) : new Date();
-          return {
-            userId,
-            problemId: p.id,
-            action: 'SOLVED',
-            timestamp: solvedDate,
-          };
-        });
+      for (const sub of newSubs) {
+        if (seenSlugs.has(sub.titleSlug)) continue;
+        const p = problemBySlug.get(sub.titleSlug);
+        if (p) {
+          seenSlugs.add(sub.titleSlug);
+          matchedNewProblemsOrdered.push({
+            id: p.id,
+            title: p.title,
+            titleSlug: p.titleSlug,
+            difficulty: p.difficulty,
+            solvedAt: submissionDateMap.get(sub.titleSlug)!,
+          });
+        }
+      }
+
+      if (matchedNewProblemsOrdered.length > 0) {
+        await batchUpsertProgress(userId, matchedNewProblemsOrdered, submissionDateMap);
+
+        const activities = matchedNewProblemsOrdered.map(p => ({
+          userId,
+          problemId: p.id,
+          action: 'SOLVED',
+          timestamp: p.solvedAt,
+        }));
+
         await prisma.activityLog.createMany({
           data: activities,
         });
 
-        // Update Streak
-        const stats = await prisma.userStats.findUnique({ where: { userId } });
-        const todayStr = new Date().toLocaleDateString('sv-SE');
-        if (stats) {
-          let newStreak = stats.streak;
-          const lastSolved = stats.lastSolvedDate;
-
-          if (!lastSolved) {
-            newStreak = 1;
-          } else if (lastSolved !== todayStr) {
-            const lastSolvedDateObj = new Date(lastSolved);
-            const todayDateObj = new Date(todayStr);
-            const diffTime = Math.abs(todayDateObj.getTime() - lastSolvedDateObj.getTime());
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            
-            if (diffDays === 1) {
-              newStreak += 1;
-            } else {
-              newStreak = 1;
-            }
-          }
-
-          await prisma.userStats.upsert({
-            where: { userId },
-            create: {
-              userId,
-              streak: newStreak,
-              lastSolvedDate: todayStr,
-            },
-            update: {
-              streak: newStreak,
-              lastSolvedDate: todayStr,
-            },
-          });
-        }
+        // Recalculate streak
+        const { streak, lastSolvedDate } = calculateStreak(recentTimestamps);
+        await prisma.userStats.upsert({
+          where: { userId },
+          create: { userId, streak, lastSolvedDate },
+          update: { streak, lastSolvedDate },
+        });
       }
 
       await prisma.userSyncConfig.update({
@@ -578,14 +676,17 @@ export async function POST(request: Request) {
       return NextResponse.json({
         success: true,
         action: 'incremental',
-        syncedCount: matchedNewProblems.length,
+        syncedCount: matchedNewProblemsOrdered.length,
         lastSubmissionTimestamp: latestTimestamp,
       });
     }
 
-    return NextResponse.json({ error: 'Invalid action parameter' }, { status: 400 });
+    return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
   } catch (error: any) {
-    console.error('Error synchronizing with LeetCode:', error);
-    return NextResponse.json({ error: 'Internal Server Error', details: error.message }, { status: 500 });
+    console.error('LeetCode sync error:', error);
+    return NextResponse.json(
+      { error: error.message || 'An error occurred during synchronization' },
+      { status: 500 }
+    );
   }
 }
