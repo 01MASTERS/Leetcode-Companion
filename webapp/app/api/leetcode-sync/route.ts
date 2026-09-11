@@ -320,6 +320,20 @@ export async function POST(request: Request) {
     if (targetAction === 'incremental') {
       const now = new Date();
       const lastSync = config.lastSyncedAt ? new Date(config.lastSyncedAt) : null;
+
+      // Server-Side Cooldown Gate: Throttles rapid repeated incremental sync calls (multi-tab spam or rapid refetches)
+      // Enforces a minimum 45-second interval between incremental syncs per user.
+      const COOLDOWN_MS = 45 * 1000;
+      if (lastSync && (now.getTime() - lastSync.getTime()) < COOLDOWN_MS) {
+        return NextResponse.json({
+          success: true,
+          action: 'incremental',
+          syncedCount: 0,
+          throttled: true,
+          message: 'Sync cooldown active. Please wait a moment before syncing again.',
+          lastSyncedAt: config.lastSyncedAt,
+        });
+      }
       
       // 1. Recovery Check: If never synced, or last synced > 7 days ago
       if (!lastSync || (now.getTime() - lastSync.getTime()) > 7 * 24 * 60 * 60 * 1000) {

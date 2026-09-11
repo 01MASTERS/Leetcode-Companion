@@ -158,7 +158,16 @@ export async function GET(request: Request) {
       };
     });
 
-    return NextResponse.json(formattedCompanies);
+    const headers: Record<string, string> = {};
+    if (!userId) {
+      // Guest catalog response is identical for all visitors. Cache at Edge CDN for 5 minutes.
+      headers['Cache-Control'] = 'public, s-maxage=300, stale-while-revalidate=600';
+    } else {
+      // Authenticated user data contains personalized solve progress; never cache publicly.
+      headers['Cache-Control'] = 'private, no-cache, no-store, must-revalidate';
+    }
+
+    return NextResponse.json(formattedCompanies, { headers });
   } catch (error: any) {
     console.error('Error fetching companies:', error);
     const details = process.env.NODE_ENV === 'development' ? error.message : undefined;

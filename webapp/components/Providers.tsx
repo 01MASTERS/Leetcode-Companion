@@ -11,7 +11,8 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         defaultOptions: {
           queries: {
             refetchOnWindowFocus: false,
-            staleTime: 1000 * 60 * 2, // 2 minutes cache validity
+            staleTime: 1000 * 60 * 3, // 3 minutes cache freshness
+            gcTime: 1000 * 60 * 10,   // 10 minutes cache garbage collection
           },
         },
       })

@@ -41,7 +41,7 @@ export async function GET() {
         hasSessionCookie: false,
       };
 
-      // Guest Mode Stats Response
+      // Guest Mode Stats Response (cached at Edge CDN for 5 minutes)
       return NextResponse.json({
         overall,
         difficulties,
@@ -61,6 +61,10 @@ export async function GET() {
         companyStats: companies,
         syncStatus: syncConfigData,
         isGuest: true,
+      }, {
+        headers: {
+          'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+        },
       });
     }
 
@@ -200,6 +204,10 @@ export async function GET() {
       companyStats: companies,
       syncStatus: syncConfigData,
       isGuest: false,
+    }, {
+      headers: {
+        'Cache-Control': 'private, no-cache, no-store, must-revalidate',
+      },
     });
   } catch (error: any) {
     console.error('Error fetching statistics:', error);
