@@ -57,7 +57,7 @@ export default function RootLayout({
             <Navbar />
 
             {/* Scrollable content canvas */}
-            <main className="flex-1 overflow-y-auto bg-gradient-to-b from-background via-background to-background/90">
+            <main className="flex-1 overflow-y-auto overflow-x-hidden bg-gradient-to-b from-background via-background to-background/90">
               {children}
             </main>
           </div>

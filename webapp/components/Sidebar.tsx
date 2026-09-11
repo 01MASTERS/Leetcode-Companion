@@ -81,7 +81,7 @@ export default function Sidebar() {
         </div>
 
         {/* Nav Menu */}
-        <nav className="flex-1 py-6 px-3 flex flex-col gap-1.5 overflow-y-auto">
+        <nav className="flex-1 py-6 px-3 flex flex-col gap-1.5 overflow-visible">
           {navItems.map((item) => {
             const isActive = item.href === '/dashboard' 
               ? (pathname === '/dashboard' || pathname.startsWith('/company/'))
@@ -93,6 +93,8 @@ export default function Sidebar() {
                 key={item.href}
                 href={item.href}
                 id={item.tourId}
+                title={!sidebarOpen ? item.name : undefined}
+                aria-label={item.name}
                 className={`flex items-center gap-3.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group relative cursor-pointer ${
                   isActive
                     ? 'text-foreground bg-secondary border border-border shadow-inner'
@@ -114,7 +116,7 @@ export default function Sidebar() {
                 
                 {/* Tooltip when collapsed */}
                 {!sidebarOpen && (
-                  <div className="absolute left-16 bg-popover border border-border text-foreground text-xs px-2.5 py-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap shadow-xl z-50">
+                  <div className="hidden group-hover:block absolute left-16 bg-popover border border-border text-foreground text-xs px-2.5 py-1.5 rounded-md pointer-events-none whitespace-nowrap shadow-xl z-50 animate-in fade-in zoom-in-95 duration-150">
                     {item.name}
                   </div>
                 )}
@@ -125,7 +127,7 @@ export default function Sidebar() {
 
         {/* Connected LeetCode account indicator in sidebar bottom */}
         {status === 'authenticated' && leetcodeUser && (
-          <div className="p-3 border-t border-border mt-auto">
+          <div className="p-3 border-t border-border mt-auto overflow-visible">
             {sidebarOpen ? (
               <a
                 href={`https://leetcode.com/u/${leetcodeUser}`}
@@ -157,7 +159,7 @@ export default function Sidebar() {
                 title={`LeetCode: ${leetcodeUser}`}
               >
                 <div className="h-2 w-2 rounded-full bg-emerald-500" />
-                <div className="absolute left-16 bg-popover border border-border text-foreground text-xs px-2.5 py-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap shadow-xl z-50">
+                <div className="hidden group-hover:block absolute left-16 bg-popover border border-border text-foreground text-xs px-2.5 py-1.5 rounded-md pointer-events-none whitespace-nowrap shadow-xl z-50 animate-in fade-in zoom-in-95 duration-150">
                   LeetCode: {leetcodeUser}
                 </div>
               </a>
