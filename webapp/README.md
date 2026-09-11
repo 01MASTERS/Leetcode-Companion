@@ -123,6 +123,13 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---
 
+## 🙏 Acknowledgments & Credits
+
+Special credit and appreciation to **[Snehasish Roy](https://github.com/snehasishroy)** and the contributors to **[snehasishroy/leetcode-companywise-interview-questions](https://github.com/snehasishroy/leetcode-companywise-interview-questions)** for curating and maintaining the original question dataset that powers this application.
+
+---
+
 <div align="center">
   <sub>Built with ❤️ for algorithm interview preparation.</sub>
 </div>
+
