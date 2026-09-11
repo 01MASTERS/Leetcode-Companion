@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useTrackerStore } from '@/store/useTrackerStore';
 import { Company, Stats } from '@/types';
-import { Trophy, Flame, CheckCircle, TrendingUp, HelpCircle, ChevronRight, Play } from 'lucide-react';
+import { Trophy, Flame, CheckCircle, TrendingUp, HelpCircle, ChevronRight, Play, ChevronDown, Check } from 'lucide-react';
 import { formatPercent } from '@/utils/helpers';
 import { motion } from 'framer-motion';
 
@@ -22,6 +22,28 @@ export default function Dashboard() {
   } = useTrackerStore();
 
   const [page, setPage] = React.useState(1);
+  const [sortOpen, setSortOpen] = React.useState(false);
+  const sortRef = React.useRef<HTMLDivElement>(null);
+
+  // Close sort dropdown when clicking outside
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (sortRef.current && !sortRef.current.contains(event.target as Node)) {
+        setSortOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const sortOptions = [
+    { value: 'most-complete', label: 'Most Complete' },
+    { value: 'least-complete', label: 'Least Complete' },
+    { value: 'alphabetical', label: 'Alphabetical' },
+    { value: 'most-remaining', label: 'Most Remaining' },
+  ] as const;
+
+  const currentSortLabel = sortOptions.find((opt) => opt.value === dashboardSort)?.label || 'Most Complete';
 
   // Reset page when filters or search change
   React.useEffect(() => {
@@ -164,19 +186,43 @@ export default function Dashboard() {
           })}
         </div>
 
-        {/* Right: Sorting Selector */}
-        <div className="flex items-center gap-2">
+        {/* Right: Custom Sorting Dropdown */}
+        <div className="flex items-center gap-2 relative" ref={sortRef}>
           <span className="text-xs text-muted-foreground font-semibold select-none">Sort by</span>
-          <select
-            value={dashboardSort}
-            onChange={(e) => setDashboardSort(e.target.value as any)}
-            className="bg-card border border-border text-xs font-semibold text-foreground rounded-lg px-2.5 py-1.5 outline-none focus:border-primary/50 cursor-pointer"
+          <button
+            type="button"
+            onClick={() => setSortOpen(!sortOpen)}
+            className="flex items-center gap-2 bg-card glass border border-border hover:border-border/80 text-xs font-semibold text-foreground rounded-xl px-3 py-1.5 transition-all shadow-sm cursor-pointer hover:bg-muted/40"
           >
-            <option value="most-complete">Most Complete</option>
-            <option value="least-complete">Least Complete</option>
-            <option value="alphabetical">Alphabetical</option>
-            <option value="most-remaining">Most Remaining</option>
-          </select>
+            <span>{currentSortLabel}</span>
+            <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 ${sortOpen ? 'rotate-180 text-primary' : ''}`} />
+          </button>
+
+          {sortOpen && (
+            <div className="absolute right-0 top-full mt-1.5 w-44 glass-blur bg-card/95 border border-border/80 rounded-xl shadow-2xl py-1.5 z-30 animate-in fade-in zoom-in-95 duration-150">
+              {sortOptions.map((opt) => {
+                const isSelected = dashboardSort === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => {
+                      setDashboardSort(opt.value);
+                      setSortOpen(false);
+                    }}
+                    className={`w-full flex items-center justify-between px-3 py-2 text-xs transition-colors cursor-pointer text-left ${
+                      isSelected
+                        ? 'text-primary font-bold bg-primary/10'
+                        : 'text-foreground/80 hover:text-foreground hover:bg-muted/60'
+                    }`}
+                  >
+                    <span>{opt.label}</span>
+                    {isSelected && <Check className="h-3.5 w-3.5 text-primary" />}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 
