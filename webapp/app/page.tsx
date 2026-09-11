@@ -116,7 +116,7 @@ export default function LandingPage() {
 
             <button
               onClick={() => signIn('google', { callbackUrl: '/dashboard' })}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-foreground text-background text-xs font-extrabold hover:opacity-95 transition-all shadow-md active:scale-95 cursor-pointer"
+              className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-border/80 bg-card hover:bg-muted/70 hover:border-border text-foreground text-xs font-semibold transition-all shadow-sm active:scale-95 cursor-pointer"
             >
               <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24">
                 <path
@@ -187,10 +187,10 @@ export default function LandingPage() {
           transition={{ duration: 0.4, delay: 0.3 }}
           className="mt-8 flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto"
         >
-          {/* Sign in with Google Primary Button */}
+          {/* Sign in with Google Button */}
           <button
             onClick={() => signIn('google', { callbackUrl: '/dashboard' })}
-            className="w-full sm:w-auto flex items-center justify-center gap-3 px-6 py-3.5 rounded-2xl bg-foreground text-background font-black text-sm hover:opacity-90 transition-all shadow-xl hover:shadow-primary/10 active:scale-[0.98] cursor-pointer"
+            className="w-full sm:w-auto flex items-center justify-center gap-3 px-6 py-3.5 rounded-2xl border border-border/90 bg-card hover:bg-muted/70 hover:border-border text-foreground font-bold text-sm transition-all shadow-md active:scale-[0.98] cursor-pointer"
           >
             <svg className="h-4.5 w-4.5 shrink-0" viewBox="0 0 24 24">
               <path
@@ -527,7 +527,7 @@ export default function LandingPage() {
           <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3.5">
             <button
               onClick={() => signIn('google', { callbackUrl: '/dashboard' })}
-              className="w-full sm:w-auto flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-2xl bg-foreground text-background font-extrabold text-sm hover:opacity-95 transition-all shadow-lg active:scale-95 cursor-pointer"
+              className="w-full sm:w-auto flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-2xl border border-border/90 bg-card hover:bg-muted/70 hover:border-border text-foreground font-bold text-sm transition-all shadow-md active:scale-95 cursor-pointer"
             >
               <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24">
                 <path

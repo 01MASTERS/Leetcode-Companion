@@ -83,7 +83,7 @@ export default function GuestGateModal() {
           <div className="space-y-2.5">
             <button
               onClick={() => signIn('google')}
-              className="w-full flex items-center justify-center gap-3 py-2.5 px-4 rounded-xl bg-foreground text-background font-semibold text-sm hover:opacity-90 transition-all shadow-md active:scale-[0.98]"
+              className="w-full flex items-center justify-center gap-3 py-2.5 px-4 rounded-xl border border-border/90 bg-card hover:bg-muted/70 hover:border-border text-foreground font-semibold text-sm transition-all shadow-md active:scale-[0.98] cursor-pointer"
             >
               {/* Google G SVG */}
               <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24">

@@ -302,7 +302,7 @@ export default function Navbar() {
             {/* Sign in with Google Button */}
             <button
               onClick={() => signIn('google')}
-              className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-foreground text-background text-xs font-bold hover:opacity-90 transition-all shadow-sm active:scale-95 cursor-pointer"
+              className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-border/80 bg-card hover:bg-muted/70 hover:border-border text-foreground text-xs font-semibold transition-all shadow-sm active:scale-95 cursor-pointer"
             >
               <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24">
                 <path
