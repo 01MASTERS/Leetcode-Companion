@@ -159,25 +159,6 @@ export default function Navbar() {
         {/* Catalog Freshness Badge */}
         <FreshnessBadge />
 
-        {/* Sync Status Badge */}
-        {leetcodeUser && status === 'authenticated' && (
-          <div className="hidden lg:flex items-center gap-1.5 px-3 py-1 bg-muted/80 border border-border rounded-xl text-xs select-none">
-            {isSyncing ? (
-              <>
-                <RefreshCw className="h-3.5 w-3.5 text-primary animate-spin" />
-                <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Syncing...</span>
-              </>
-            ) : (
-              <>
-                <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider truncate max-w-[120px]">
-                  Synced: {leetcodeUser}
-                </span>
-              </>
-            )}
-          </div>
-        )}
-
         {/* Streak counter */}
         {stats && stats.streak > 0 && status === 'authenticated' && (
           <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-lg text-xs font-semibold select-none animate-pulse">
@@ -260,9 +241,15 @@ export default function Navbar() {
             {/* Dropdown Menu */}
             {userDropdownOpen && (
               <div className="absolute right-0 mt-2 w-56 glass bg-card border border-border/80 rounded-2xl shadow-xl py-2 z-50 text-foreground animate-in fade-in slide-in-from-top-2 duration-150">
-                <div className="px-4 py-2.5 border-b border-border/60">
+                <div className="px-4 py-2.5 border-b border-border/60 space-y-1">
                   <p className="text-xs font-semibold text-foreground truncate">{session.user.name}</p>
                   <p className="text-[11px] text-muted-foreground truncate">{session.user.email}</p>
+                  {leetcodeUser && (
+                    <div className="flex items-center gap-1.5 pt-1 text-[11px] text-emerald-400 font-medium">
+                      <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                      <span>LC: <span className="font-mono text-foreground font-semibold">{leetcodeUser}</span></span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="py-1">

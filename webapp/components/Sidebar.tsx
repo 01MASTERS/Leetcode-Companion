@@ -4,12 +4,28 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
+import { useSession } from 'next-auth/react';
+import { useQuery } from '@tanstack/react-query';
 import { useTrackerStore } from '@/store/useTrackerStore';
-import { LayoutDashboard, BarChart3, Settings, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Stats } from '@/types';
+import { LayoutDashboard, BarChart3, Settings, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { status } = useSession();
   const { sidebarOpen, toggleSidebar } = useTrackerStore();
+
+  const { data: stats } = useQuery<Stats>({
+    queryKey: ['stats'],
+    queryFn: async () => {
+      const res = await fetch('/api/stats');
+      if (!res.ok) throw new Error('Failed to fetch stats');
+      return res.json();
+    },
+    refetchInterval: 60000,
+  });
+
+  const leetcodeUser = stats?.syncConfig?.leetcodeUser;
 
   // Hide sidebar completely on public landing page
   if (pathname === '/') return null;
@@ -95,6 +111,48 @@ export default function Sidebar() {
           );
         })}
       </nav>
+
+      {/* Connected LeetCode account indicator in sidebar bottom */}
+      {status === 'authenticated' && leetcodeUser && (
+        <div className="p-3 border-t border-border mt-auto">
+          {sidebarOpen ? (
+            <a
+              href={`https://leetcode.com/u/${leetcodeUser}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-between p-2.5 rounded-xl bg-card border border-border/80 hover:border-border hover:bg-muted/60 transition-all text-xs group"
+              title={`Connected LeetCode account: ${leetcodeUser}`}
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="relative flex h-2 w-2 shrink-0">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                </span>
+                <div className="truncate text-left">
+                  <div className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">LeetCode</div>
+                  <div className="font-mono font-semibold text-foreground truncate group-hover:text-primary transition-colors text-xs">
+                    {leetcodeUser}
+                  </div>
+                </div>
+              </div>
+              <ExternalLink className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground shrink-0 transition-colors ml-1" />
+            </a>
+          ) : (
+            <a
+              href={`https://leetcode.com/u/${leetcodeUser}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center p-2.5 rounded-xl bg-card border border-border/80 hover:bg-muted/60 transition-all group relative"
+              title={`LeetCode: ${leetcodeUser}`}
+            >
+              <div className="h-2 w-2 rounded-full bg-emerald-500" />
+              <div className="absolute left-16 bg-popover border border-border text-foreground text-xs px-2.5 py-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap shadow-xl z-50">
+                LeetCode: {leetcodeUser}
+              </div>
+            </a>
+          )}
+        </div>
+      )}
     </motion.div>
   );
 }
