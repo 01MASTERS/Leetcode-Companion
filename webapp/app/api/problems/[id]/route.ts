@@ -203,17 +203,12 @@ export async function PATCH(
       if (solved) {
         // Verify with LeetCode before marking as solved
         const config = await prisma.userSyncConfig.findUnique({ where: { userId } });
-        const isSimulation = config?.isDemoMode ||
-          config?.leetcodeUser?.toLowerCase() === 'demo' ||
-          config?.leetcodeUser?.toLowerCase() === 'simulation';
-
-        if (!isSimulation) {
-          if (!config?.leetcodeUser) {
-            return NextResponse.json(
-              { error: 'Please set your LeetCode username in Settings before marking problems as solved.' },
-              { status: 400 }
-            );
-          }
+        if (!config?.leetcodeUser) {
+          return NextResponse.json(
+            { error: 'Please set your LeetCode username in Settings before marking problems as solved.' },
+            { status: 400 }
+          );
+        }
 
           const verification = await verifyProblemSolvedOnLeetCode(
             config.leetcodeUser,
@@ -229,10 +224,6 @@ export async function PATCH(
           }
 
           dataToUpdate.solvedAt = verification.solvedAt || existingProgress?.solvedAt || new Date();
-        } else {
-          dataToUpdate.solvedAt = existingProgress?.solvedAt || new Date();
-        }
-
         dataToUpdate.solved = true;
         if (!existingProgress?.solved) {
           solvedStateChanged = true;

@@ -70,11 +70,10 @@ export default function Navbar() {
   });
 
   const leetcodeUser = stats?.syncConfig?.leetcodeUser;
-  const isDemoMode = stats?.syncConfig?.isDemoMode;
 
   // Background incremental sync on mount and every 60 seconds (only if user is authenticated)
   React.useEffect(() => {
-    if (!leetcodeUser || isDemoMode || status !== 'authenticated') return;
+    if (!leetcodeUser || status !== 'authenticated') return;
 
     let isMounted = true;
 
@@ -115,7 +114,7 @@ export default function Navbar() {
       isMounted = false;
       clearInterval(intervalId);
     };
-  }, [leetcodeUser, isDemoMode, status, addToast, queryClient]);
+  }, [leetcodeUser, status, addToast, queryClient]);
 
   const getPlaceholderText = () => {
     if (pathname.startsWith('/company/')) {
@@ -166,9 +165,9 @@ export default function Navbar() {
               </>
             ) : (
               <>
-                <div className={`h-1.5 w-1.5 rounded-full ${isDemoMode ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
+                <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                 <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider truncate max-w-[120px]">
-                  {isDemoMode ? 'Demo Mode' : `Synced: ${leetcodeUser}`}
+                  Synced: {leetcodeUser}
                 </span>
               </>
             )}

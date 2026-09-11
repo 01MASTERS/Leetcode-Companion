@@ -248,7 +248,7 @@ async function batchUpsertProgress(
 
 export async function POST(request: Request) {
   try {
-    const { username: rawUsername, action, isSimulation, leetcodeSession } = await request.json();
+    const { username: rawUsername, action, leetcodeSession } = await request.json();
 
     let username = cleanUsername(rawUsername);
     let targetAction = action || 'full';
@@ -353,7 +353,6 @@ export async function POST(request: Request) {
 
       let solvedSlugs: Set<string> = new Set();
       let latestTimestamp = 0;
-      let isDemoMode = !!isSimulation;
       let cookieValid = false;
       let cookieWarning = '';
       const recentSubmissionMap = new Map<string, Date>();
@@ -366,35 +365,11 @@ export async function POST(request: Request) {
         ? cleanRawCookie
         : (config.leetcodeUser.toLowerCase() === username.toLowerCase() ? config.leetcodeSession : '');
 
-      if (isDemoMode || username.toLowerCase() === 'demo' || username.toLowerCase() === 'simulation') {
-        isDemoMode = true;
-        console.log('Seeding simulated solved questions for demo...');
-        const popularProblems = await prisma.problem.findMany({
-          take: 120,
-          orderBy: { id: 'asc' },
-        });
-        
-        solvedSlugs = new Set(popularProblems.map(p => p.titleSlug));
-        latestTimestamp = Math.floor(Date.now() / 1000);
-
-        // Stagger the first 15 problems across past days so demo mode also has realistic recent solves
-        const now = Date.now();
-        for (let i = 0; i < Math.min(15, popularProblems.length); i++) {
-          const fakeTs = Math.floor((now - i * 3600 * 1000 * 8) / 1000);
-          recentSubmissionMap.set(popularProblems[i].titleSlug, new Date(fakeTs * 1000));
-          recentTimestamps.push(fakeTs);
-          fetchedRecentSubs.push({
-            title: popularProblems[i].title,
-            titleSlug: popularProblems[i].titleSlug,
-            timestamp: `${fakeTs}`,
-          });
-        }
-      } else {
-        // Fetch recent accepted submissions to get real solve timestamps
-        try {
-          fetchedRecentSubs = cachedRecentSubs.length > 0 
-            ? cachedRecentSubs 
-            : await fetchRecentSubmissions(username, 50);
+      // Fetch recent accepted submissions to get real solve timestamps
+      try {
+        fetchedRecentSubs = cachedRecentSubs.length > 0 
+          ? cachedRecentSubs 
+          : await fetchRecentSubmissions(username, 50);
 
           for (const sub of fetchedRecentSubs) {
             const ts = parseInt(sub.timestamp, 10);
@@ -481,9 +456,8 @@ export async function POST(request: Request) {
             console.warn('Could not fetch public solved stats:', statsErr.message);
           }
         }
-      }
 
-      // Find all matched problems in our database catalog
+        // Find all matched problems in our database catalog
       const matchedProblems = await prisma.problem.findMany({
         where: { titleSlug: { in: Array.from(solvedSlugs) } },
         select: { id: true, titleSlug: true, title: true, difficulty: true },
@@ -560,14 +534,14 @@ export async function POST(request: Request) {
           leetcodeSession: storedCookie,
           lastSyncedAt: new Date(),
           lastSubmissionTimestamp: latestTimestamp,
-          isDemoMode,
+          isDemoMode: false,
         },
         update: {
           leetcodeUser: username,
           leetcodeSession: storedCookie,
           lastSyncedAt: new Date(),
           lastSubmissionTimestamp: latestTimestamp,
-          isDemoMode,
+          isDemoMode: false,
         },
       });
 
@@ -576,7 +550,6 @@ export async function POST(request: Request) {
         action: 'full',
         syncedCount: matchedProblems.length,
         recentCount: matchedRecentProblems.length,
-        isDemoMode,
         hasSessionCookie: cookieValid,
         cookieWarning: cookieWarning || undefined,
         lastSubmissionTimestamp: latestTimestamp,
@@ -588,15 +561,6 @@ export async function POST(request: Request) {
     // ==========================================
     if (targetAction === 'incremental') {
       console.log(`Starting Incremental Sync for user: ${username}`);
-      
-      if (config.isDemoMode) {
-        return NextResponse.json({
-          success: true,
-          action: 'incremental',
-          syncedCount: 0,
-          message: 'Simulation demo mode active. No live polling.',
-        });
-      }
 
       const recentSubs = cachedRecentSubs.length > 0 
         ? cachedRecentSubs 

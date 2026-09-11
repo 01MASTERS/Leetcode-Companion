@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useSession, signIn } from 'next-auth/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTrackerStore } from '@/store/useTrackerStore';
-import { RefreshCw, Info, AlertTriangle } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { formatDate } from '@/utils/helpers';
 import { Stats } from '@/types';
 
@@ -14,7 +14,6 @@ export default function SettingsPage() {
   const { addToast, openGuestGate } = useTrackerStore();
   const [username, setUsername] = useState('');
   const [leetcodeSession, setLeetcodeSession] = useState('');
-  const [isSimulation, setIsSimulation] = useState(true);
 
   // Fetch current statistics (which contains sync configurations)
   const { data: stats } = useQuery<Stats>({
@@ -65,7 +64,6 @@ export default function SettingsPage() {
   useEffect(() => {
     if (syncConfig?.leetcodeUser) {
       setUsername(syncConfig.leetcodeUser);
-      setIsSimulation(syncConfig.isDemoMode);
       if (syncConfig.hasSessionCookie) {
         setLeetcodeSession('••••••••••••••••');
       }
@@ -84,7 +82,6 @@ export default function SettingsPage() {
         body: JSON.stringify({
           username,
           action: 'full',
-          isSimulation,
           leetcodeSession: sessionToSend,
         }),
       });
@@ -103,7 +100,7 @@ export default function SettingsPage() {
       
       if (data.success) {
         addToast(
-          `Sync successful! Marked ${data.syncedCount} questions as solved (${data.isDemoMode ? 'Demo' : 'Real'} mode).`,
+          `Sync successful! Marked ${data.syncedCount} questions as solved.`,
           'success'
         );
         if (data.cookieWarning) {
@@ -190,34 +187,6 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* Sync warning/helper */}
-          <div className="p-4 bg-muted/60 border border-border rounded-xl text-xs text-muted-foreground leading-relaxed flex items-start gap-3">
-            <Info className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
-            <div className="space-y-1">
-              <p className="font-semibold text-foreground">How Sync works:</p>
-              <p>
-                We query the LeetCode GraphQL endpoint to retrieve your solved questions and overall solved counts.
-                You can also secure <strong>100% exact question sync</strong> by providing your LeetCode Session Cookie.
-                Without a cookie, older questions will be populated using representative popular questions of matching difficulties.
-              </p>
-            </div>
-          </div>
-
-          {/* Warning banner if demo mode solved states exist and switching to real sync */}
-          {syncConfig && syncConfig.isDemoMode && !isSimulation && (
-            <div className="p-4 bg-orange-500/10 border border-orange-500/20 rounded-xl text-xs text-orange-400 leading-relaxed flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-orange-500 flex-shrink-0 mt-0.5 animate-bounce" />
-              <div className="space-y-1">
-                <p className="font-semibold text-orange-650 dark:text-orange-350">Warning: Switching to Real Sync</p>
-                <p>
-                  You are switching from Demo Mode to a Real Sync. Starting a real sync will
-                  automatically clear all 120 Demo Mode solved questions and start fresh with
-                  your real profile's solved questions!
-                </p>
-              </div>
-            </div>
-          )}
-
           <form onSubmit={handleSyncSubmit} className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
               <div className="flex justify-between items-baseline">
@@ -240,49 +209,26 @@ export default function SettingsPage() {
             </div>
 
             {/* Authenticated Cookie Input */}
-            {!isSimulation && (
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                  LeetCode Session Cookie (Optional)
-                </label>
-                <input
-                  type="password"
-                  value={leetcodeSession}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setLeetcodeSession(val);
-                    if (val && val.length > 50 && val !== '••••••••••••••••') {
-                      handleDetectUsername(val);
-                    }
-                  }}
-                  placeholder={syncConfig?.hasSessionCookie ? "Session cookie saved (securely stored locally)" : "Enter LEETCODE_SESSION cookie value"}
-                  className="bg-input-bg border border-border text-sm text-foreground rounded-xl p-3 outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-muted-foreground"
-                />
-                <p className="text-[10px] text-muted-foreground leading-relaxed leading-normal">
-                  How to get it: Log in to LeetCode &rarr; Open DevTools (F12) &rarr; Application/Storage &rarr; Cookies &rarr; Copy the value of <strong>LEETCODE_SESSION</strong>.
-                </p>
-              </div>
-            )}
-
-            {/* Simulation mode switch */}
-            <div className="flex items-center justify-between p-3.5 bg-muted/40 border border-border rounded-xl">
-              <div className="flex flex-col">
-                <span className="text-sm font-semibold text-foreground">Simulation / Demonstration Mode</span>
-                <span className="text-xs text-muted-foreground">Run a simulated solve import to populate the dashboard</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsSimulation(!isSimulation)}
-                className={`w-12 h-6.5 rounded-full p-1 transition-colors outline-none cursor-pointer ${
-                  isSimulation ? 'bg-primary' : 'bg-muted border border-border'
-                }`}
-              >
-                <div
-                  className={`w-4.5 h-4.5 rounded-full bg-black transition-transform ${
-                    isSimulation ? 'translate-x-5.5' : 'translate-x-0 bg-muted-foreground'
-                  }`}
-                />
-              </button>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                LeetCode Session Cookie (Optional)
+              </label>
+              <input
+                type="password"
+                value={leetcodeSession}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setLeetcodeSession(val);
+                  if (val && val.length > 50 && val !== '••••••••••••••••') {
+                    handleDetectUsername(val);
+                  }
+                }}
+                placeholder={syncConfig?.hasSessionCookie ? "Session cookie saved (securely stored locally)" : "Enter LEETCODE_SESSION cookie value"}
+                className="bg-input-bg border border-border text-sm text-foreground rounded-xl p-3 outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-muted-foreground"
+              />
+              <p className="text-[10px] text-muted-foreground leading-relaxed leading-normal">
+                How to get it: Log in to LeetCode &rarr; Open DevTools (F12) &rarr; Application/Storage &rarr; Cookies &rarr; Copy the value of <strong>LEETCODE_SESSION</strong>.
+              </p>
             </div>
 
             {/* Submit */}
