@@ -89,8 +89,8 @@ export default function Dashboard() {
               <Trophy className="h-4.5 w-4.5 text-primary group-hover:scale-110 group-hover:rotate-6 transition-transform duration-300" />
             </div>
             <div>
-              <span className="text-2xl font-black text-foreground">{stats.overall.solvedProblems}</span>
-              <span className="text-xs text-muted-foreground ml-1.5">/ {stats.overall.totalProblems} ({stats.overall.completionPercentage.toFixed(1)}%)</span>
+              <span className="text-2xl font-black text-foreground">{stats.overall?.solvedProblems ?? 0}</span>
+              <span className="text-xs text-muted-foreground ml-1.5">/ {stats.overall?.totalProblems ?? 0} ({(stats.overall?.completionPercentage ?? 0).toFixed(1)}%)</span>
             </div>
           </div>
 
@@ -102,8 +102,8 @@ export default function Dashboard() {
               <CheckCircle className="h-4.5 w-4.5 text-emerald-500 group-hover:scale-110 group-hover:rotate-6 transition-transform duration-300" />
             </div>
             <div>
-              <span className="text-2xl font-black text-foreground">{stats.companies.completed}</span>
-              <span className="text-xs text-muted-foreground ml-1.5">/ {stats.companies.total}</span>
+              <span className="text-2xl font-black text-foreground">{stats.companies?.completed ?? 0}</span>
+              <span className="text-xs text-muted-foreground ml-1.5">/ {stats.companies?.total ?? 0}</span>
             </div>
           </div>
 
@@ -115,7 +115,7 @@ export default function Dashboard() {
               <TrendingUp className="h-4.5 w-4.5 text-blue-500 group-hover:scale-110 group-hover:-rotate-6 transition-transform duration-300" />
             </div>
             <div>
-              <span className="text-2xl font-black text-foreground">{stats.companies.started}</span>
+              <span className="text-2xl font-black text-foreground">{stats.companies?.started ?? 0}</span>
               <span className="text-xs text-muted-foreground ml-1.5">Companies</span>
             </div>
           </div>
@@ -128,7 +128,7 @@ export default function Dashboard() {
               <Flame className="h-4.5 w-4.5 text-orange-500 group-hover:scale-110 group-hover:rotate-12 transition-transform duration-300" />
             </div>
             <div>
-              <span className="text-2xl font-black text-foreground">{stats.streak}</span>
+              <span className="text-2xl font-black text-foreground">{stats.streak ?? 0}</span>
               <span className="text-xs text-muted-foreground ml-1.5">Days</span>
             </div>
           </div>

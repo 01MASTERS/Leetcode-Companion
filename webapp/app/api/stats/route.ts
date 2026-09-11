@@ -18,33 +18,48 @@ export async function GET() {
     ]);
 
     if (!userId) {
-      // Guest Mode Stats Response
-      return NextResponse.json({
+      const overall = {
         totalProblems,
         solvedProblems: 0,
         remainingProblems: totalProblems,
         completionPercentage: 0,
-        difficultyBreakdown: {
-          easy: { solved: 0, total: easyTotal },
-          medium: { solved: 0, total: mediumTotal },
-          hard: { solved: 0, total: hardTotal },
-        },
+      };
+      const difficulties = {
+        easy: { solved: 0, total: easyTotal },
+        medium: { solved: 0, total: mediumTotal },
+        hard: { solved: 0, total: hardTotal },
+      };
+      const companies = {
+        total: totalCompanies,
+        completed: 0,
+        started: 0,
+      };
+      const syncConfigData = {
+        leetcodeUser: '',
+        lastSyncedAt: null,
+        isDemoMode: false,
+        hasSessionCookie: false,
+      };
+
+      // Guest Mode Stats Response
+      return NextResponse.json({
+        overall,
+        difficulties,
+        companies,
         streak: 0,
         todaySolvedCount: 0,
-        companyStats: {
-          total: totalCompanies,
-          completed: 0,
-          started: 0,
-          notStarted: totalCompanies,
-        },
         recentActivity: [],
         bookmarkedProblems: [],
-        syncStatus: {
-          username: '',
-          lastSyncedAt: null,
-          isDemoMode: false,
-          hasSessionCookie: false,
-        },
+        bookmarkedCount: 0,
+        syncConfig: syncConfigData,
+        // Flat aliases for backwards compatibility
+        totalProblems,
+        solvedProblems: 0,
+        remainingProblems: totalProblems,
+        completionPercentage: 0,
+        difficultyBreakdown: difficulties,
+        companyStats: companies,
+        syncStatus: syncConfigData,
         isGuest: true,
       });
     }
@@ -143,32 +158,47 @@ export async function GET() {
       updatedAt: p.updatedAt.toISOString(),
     }));
 
-    return NextResponse.json({
+    const overall = {
       totalProblems,
       solvedProblems,
       remainingProblems,
       completionPercentage,
-      difficultyBreakdown: {
-        easy: { solved: easySolved, total: easyTotal },
-        medium: { solved: mediumSolved, total: mediumTotal },
-        hard: { solved: hardSolved, total: hardTotal },
-      },
+    };
+    const difficulties = {
+      easy: { solved: easySolved, total: easyTotal },
+      medium: { solved: mediumSolved, total: mediumTotal },
+      hard: { solved: hardSolved, total: hardTotal },
+    };
+    const companies = {
+      total: totalCompanies,
+      completed: completedCompanies,
+      started: startedCompanies,
+    };
+    const syncConfigData = {
+      leetcodeUser: syncConfig?.leetcodeUser || '',
+      lastSyncedAt: syncConfig?.lastSyncedAt || null,
+      isDemoMode: !!syncConfig?.isDemoMode,
+      hasSessionCookie: !!syncConfig?.leetcodeSession,
+    };
+
+    return NextResponse.json({
+      overall,
+      difficulties,
+      companies,
       streak,
       todaySolvedCount,
-      companyStats: {
-        total: totalCompanies,
-        completed: completedCompanies,
-        started: startedCompanies,
-        notStarted: totalCompanies - startedCompanies - completedCompanies,
-      },
       recentActivity,
       bookmarkedProblems,
-      syncStatus: {
-        username: syncConfig?.leetcodeUser || '',
-        lastSyncedAt: syncConfig?.lastSyncedAt || null,
-        isDemoMode: !!syncConfig?.isDemoMode,
-        hasSessionCookie: !!syncConfig?.leetcodeSession,
-      },
+      bookmarkedCount: bookmarkedProblems.length,
+      syncConfig: syncConfigData,
+      // Flat aliases for backwards compatibility
+      totalProblems,
+      solvedProblems,
+      remainingProblems,
+      completionPercentage,
+      difficultyBreakdown: difficulties,
+      companyStats: companies,
+      syncStatus: syncConfigData,
       isGuest: false,
     });
   } catch (error: any) {

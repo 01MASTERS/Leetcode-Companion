@@ -181,18 +181,18 @@ export default function Navbar() {
         )}
 
         {/* Global Progress mini-indicator */}
-        {stats && status === 'authenticated' && (
+        {stats && status === 'authenticated' && stats.overall && (
           <div className="hidden xl:flex items-center gap-3">
             <div className="text-right">
               <div className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Solved</div>
               <div className="text-sm font-bold text-foreground">
-                {stats.overall.solvedProblems} <span className="text-muted-foreground">/ {stats.overall.totalProblems}</span>
+                {stats.overall.solvedProblems ?? 0} <span className="text-muted-foreground">/ {stats.overall.totalProblems ?? 0}</span>
               </div>
             </div>
             <div className="w-16 bg-zinc-200 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden">
               <div
                 className="bg-primary h-full rounded-full transition-all duration-500"
-                style={{ width: `${stats.overall.completionPercentage}%` }}
+                style={{ width: `${stats.overall.completionPercentage ?? 0}%` }}
               />
             </div>
           </div>
