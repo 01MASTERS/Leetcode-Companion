@@ -8,6 +8,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTrackerStore } from '@/store/useTrackerStore';
 import { Search, Flame, Trophy, ArrowUpRight, RefreshCw, User, LogOut, Settings as SettingsIcon, ChevronDown, Sparkles } from 'lucide-react';
 import { Stats } from '@/types';
+import FreshnessBadge from '@/components/FreshnessBadge';
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -154,7 +155,10 @@ export default function Navbar() {
       </div>
 
       {/* Right Stats & Profile items */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3 md:gap-4">
+        {/* Catalog Freshness Badge */}
+        <FreshnessBadge />
+
         {/* Sync Status Badge */}
         {leetcodeUser && status === 'authenticated' && (
           <div className="hidden lg:flex items-center gap-1.5 px-3 py-1 bg-muted/80 border border-border rounded-xl text-xs select-none">

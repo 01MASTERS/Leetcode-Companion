@@ -33,6 +33,11 @@ interface TrackerState {
   guestGateReason: string;
   openGuestGate: (reason?: string) => void;
   closeGuestGate: () => void;
+
+  // Catalog Sync History Audit Modal
+  syncHistoryModalOpen: boolean;
+  openSyncHistoryModal: () => void;
+  closeSyncHistoryModal: () => void;
 }
 
 export const useTrackerStore = create<TrackerState>((set) => ({
@@ -62,6 +67,10 @@ export const useTrackerStore = create<TrackerState>((set) => ({
         'Sign in with Google to sync your progress, save personal notes, and connect your LeetCode account across devices.',
     }),
   closeGuestGate: () => set({ guestGateOpen: false }),
+
+  syncHistoryModalOpen: false,
+  openSyncHistoryModal: () => set({ syncHistoryModalOpen: true }),
+  closeSyncHistoryModal: () => set({ syncHistoryModalOpen: false }),
 
   toasts: [],
   addToast: (message, type) => {

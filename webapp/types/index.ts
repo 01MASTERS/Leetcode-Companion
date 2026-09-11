@@ -81,6 +81,7 @@ export interface CompanyDetail {
   id: number;
   name: string;
   slug: string;
+  updatedAt?: string;
   stats: {
     totalProblems: number;
     solvedProblems: number;
@@ -90,3 +91,27 @@ export interface CompanyDetail {
   firstUnsolved: Problem | null;
   problems: Problem[];
 }
+
+export interface SyncAuditItem {
+  id: number;
+  shortSha: string;
+  commitUrl: string;
+  syncedAt: string;
+  summary: string | null;
+}
+
+export interface CatalogSyncStatus {
+  latest: {
+    id: number;
+    commitSha: string;
+    shortSha: string;
+    commitUrl: string;
+    syncedAt: string;
+    totalCompanies: number;
+    totalProblems: number;
+    summary: string | null;
+    updatedCompanySlugs: string[];
+  } | null;
+  history: SyncAuditItem[];
+}
+

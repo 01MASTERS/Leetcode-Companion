@@ -86,6 +86,7 @@ export async function GET(
       id: company.id,
       name: company.name,
       slug: company.slug,
+      updatedAt: company.updatedAt,
       isGuest: !userId,
       stats: {
         totalProblems,

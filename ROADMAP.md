@@ -150,8 +150,8 @@ Build the autonomous GitHub Actions background ingestion worker that polls `sneh
 
 ---
 
-### 🟢 Phase 5: Catalog Freshness UI & Per-Company Indicators
-> **Priority:** Medium (Visual transparency and data freshness for users)
+### ✅ Phase 5: Catalog Freshness UI & Per-Company Indicators (Completed)
+> **Status:** Completed (Minimalist relative header badge, obsidian hover popover, audit timeline modal, and per-company verification indicators deployed)
 
 #### Objective
 Display exactly when the catalog was last synced using a clean, short relative timestamp in the header, with a rich hover popover and full audit modal.
@@ -159,16 +159,18 @@ Display exactly when the catalog was last synced using a clean, short relative t
 #### Technical Specifications
 1. **Minimalist Header Freshness Badge**:
    * Unobtrusive display in the navigation bar/header:
-     * e.g., `⚡ Questions updated: Yesterday` or `⚡ Questions updated: 3 days ago` / `Last month`.
+     * e.g., `⚡ Questions updated: Today` / `14m ago` with animated pulsing emerald indicator.
 2. **Interactive Hover Tooltip / Popover**:
    * Hovering over the badge displays a glassmorphic popover:
-     * **Exact Date & Time**: `Sep 10, 2026, 10:30 PM UTC`
-     * **Upstream Commit**: `#e095c25` (clickable link to upstream commit)
-     * **Summary**: `12 companies refreshed, 45 questions updated`
+     * **Exact Date & Time**: Formatted with local/UTC timezone.
+     * **Upstream Commit**: `#e095c25` (clickable external link to upstream commit).
+     * **Catalog Scope**: `658 Cos • 3,399 Qs`.
+     * **Summary**: Summary of changes from last ingestion run.
 3. **Catalog Timeline Modal**:
-   * Clicking the banner opens a modal displaying a chronological audit feed of past upstream sync events.
+   * Clicking the banner or "View Full Sync Audit Trail" opens a modal displaying a chronological audit feed of past upstream sync events, summary cards, and direct commit links.
 4. **Per-Company Last Updated Indicator**:
-   * Inside individual company tracks (`/company/[slug]`), displays a badge indicating when that specific company's question list was last refreshed.
+   * Inside individual company tracks (`/company/[slug]`), displays `⚡ Verified 2026 Frequency • Refreshed Today` badge indicating when that company's question list was last refreshed.
+
 
 ---
 
