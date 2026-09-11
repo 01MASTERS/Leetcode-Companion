@@ -129,10 +129,10 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="p-6 max-w-4xl mx-auto flex flex-col gap-6 select-text text-foreground animate-in fade-in duration-300">
+    <div className="p-4 sm:p-6 max-w-4xl mx-auto flex flex-col gap-5 sm:gap-6 select-text text-foreground animate-in fade-in duration-300">
       <div>
-        <h1 className="text-3xl font-black text-foreground tracking-tight">Settings</h1>
-        <p className="text-sm text-muted-foreground mt-1">Configure and manage your LC tracker account settings.</p>
+        <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight">Settings</h1>
+        <p className="text-xs sm:text-sm text-muted-foreground mt-1">Configure and manage your LC tracker account settings.</p>
       </div>
 
       {/* Guest Mode Notice */}
@@ -176,7 +176,7 @@ export default function SettingsPage() {
 
       <div className="grid grid-cols-1 gap-6">
         {/* LeetCode Sync Panel */}
-        <div className="glass border border-border rounded-2xl p-6 flex flex-col gap-5">
+        <div className="glass border border-border rounded-2xl p-4 sm:p-6 flex flex-col gap-5">
           <div className="flex items-center gap-3">
             <div className="bg-primary/10 border border-primary/20 p-2.5 rounded-xl text-primary animate-pulse">
               <RefreshCw className="h-5 w-5" />
@@ -264,7 +264,7 @@ export default function SettingsPage() {
 
           {/* Sync Stats footer */}
           {syncConfig && (
-            <div className="border-t border-border pt-4 flex justify-between text-xs text-muted-foreground">
+            <div className="border-t border-border pt-4 flex flex-col sm:flex-row justify-between gap-1.5 text-xs text-muted-foreground">
               <span>Last Synced Username: <strong className="text-foreground">{syncConfig.leetcodeUser || 'Never'}</strong></span>
               <span>Last Sync: <strong className="text-foreground">{syncConfig.lastSyncedAt ? formatDate(syncConfig.lastSyncedAt) : 'Never'}</strong></span>
             </div>

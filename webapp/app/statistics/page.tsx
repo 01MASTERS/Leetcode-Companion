@@ -24,12 +24,12 @@ export default function StatisticsPage() {
 
   if (isLoading) {
     return (
-      <div className="p-8 flex flex-col gap-6 max-w-7xl mx-auto text-foreground">
+      <div className="p-4 sm:p-8 flex flex-col gap-6 max-w-7xl mx-auto text-foreground">
         <div className="space-y-2">
           <div className="h-10 w-48 bg-muted rounded-lg shimmer" />
           <div className="h-5 w-64 bg-muted rounded-lg shimmer" />
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-5">
           {[...Array(4)].map((_, i) => (
             <div key={i} className="h-32 bg-muted rounded-2xl shimmer" />
           ))}
@@ -80,65 +80,65 @@ export default function StatisticsPage() {
   ];
 
   return (
-    <div className="p-6 max-w-7xl mx-auto flex flex-col gap-6 select-text text-foreground animate-in fade-in duration-305">
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto flex flex-col gap-5 sm:gap-6 select-text text-foreground animate-in fade-in duration-305">
       <div>
-        <h1 className="text-3xl font-black text-foreground tracking-tight">Statistics</h1>
-        <p className="text-sm text-muted-foreground mt-1">Detailed performance metrics and daily progression summary.</p>
+        <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight">Statistics</h1>
+        <p className="text-xs sm:text-sm text-muted-foreground mt-1">Detailed performance metrics and daily progression summary.</p>
       </div>
 
       {/* Grid of 4 Key Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-5">
         {/* Total Solved */}
-        <div className="glass border border-border hover:border-amber-500/50 hover:bg-amber-500/[0.04] hover:shadow-xl hover:shadow-amber-500/10 rounded-2xl p-5 flex flex-col justify-between h-32 relative group overflow-hidden transition-all duration-300 hover:-translate-y-1">
+        <div className="glass border border-border hover:border-amber-500/50 hover:bg-amber-500/[0.04] hover:shadow-xl hover:shadow-amber-500/10 rounded-2xl p-4 sm:p-5 flex flex-col justify-between h-30 sm:h-32 relative group overflow-hidden transition-all duration-300 hover:-translate-y-1">
           <div className="absolute -top-10 -right-10 w-24 h-24 bg-amber-500/0 group-hover:bg-amber-500/20 rounded-full blur-xl transition-all duration-500 pointer-events-none" />
           <div className="flex justify-between items-start text-muted-foreground relative z-10">
             <span className="text-xs font-bold uppercase tracking-wider">Total Solved</span>
             <Trophy className="h-5 w-5 text-primary group-hover:scale-110 group-hover:rotate-6 transition-transform duration-300" />
           </div>
           <div className="mt-2 relative z-10">
-            <span className="text-3xl font-black text-foreground">{overall.solvedProblems}</span>
+            <span className="text-2xl sm:text-3xl font-black text-foreground">{overall.solvedProblems}</span>
             <span className="text-xs text-muted-foreground ml-1.5">/ {overall.totalProblems} ({overall.completionPercentage.toFixed(1)}%)</span>
           </div>
           <div className="text-[10px] text-muted-foreground mt-1 relative z-10">Unique LeetCode questions completed</div>
         </div>
 
         {/* Current Streak */}
-        <div className="glass border border-border hover:border-orange-500/50 hover:bg-orange-500/[0.04] hover:shadow-xl hover:shadow-orange-500/10 rounded-2xl p-5 flex flex-col justify-between h-32 relative group overflow-hidden transition-all duration-300 hover:-translate-y-1">
+        <div className="glass border border-border hover:border-orange-500/50 hover:bg-orange-500/[0.04] hover:shadow-xl hover:shadow-orange-500/10 rounded-2xl p-4 sm:p-5 flex flex-col justify-between h-30 sm:h-32 relative group overflow-hidden transition-all duration-300 hover:-translate-y-1">
           <div className="absolute -top-10 -right-10 w-24 h-24 bg-orange-500/0 group-hover:bg-orange-500/20 rounded-full blur-xl transition-all duration-500 pointer-events-none" />
           <div className="flex justify-between items-start text-muted-foreground relative z-10">
             <span className="text-xs font-bold uppercase tracking-wider">Active Streak</span>
             <Flame className="h-5 w-5 text-orange-500 group-hover:scale-110 group-hover:rotate-12 transition-transform duration-300" />
           </div>
           <div className="mt-2 relative z-10">
-            <span className="text-3xl font-black text-foreground">{streak}</span>
+            <span className="text-2xl sm:text-3xl font-black text-foreground">{streak}</span>
             <span className="text-xs text-muted-foreground ml-1.5">Days</span>
           </div>
           <div className="text-[10px] text-muted-foreground mt-1 relative z-10">Solve daily to build your momentum</div>
         </div>
 
         {/* Solved Today */}
-        <div className="glass border border-border hover:border-emerald-500/50 hover:bg-emerald-500/[0.04] hover:shadow-xl hover:shadow-emerald-500/10 rounded-2xl p-5 flex flex-col justify-between h-32 relative group overflow-hidden transition-all duration-300 hover:-translate-y-1">
+        <div className="glass border border-border hover:border-emerald-500/50 hover:bg-emerald-500/[0.04] hover:shadow-xl hover:shadow-emerald-500/10 rounded-2xl p-4 sm:p-5 flex flex-col justify-between h-30 sm:h-32 relative group overflow-hidden transition-all duration-300 hover:-translate-y-1">
           <div className="absolute -top-10 -right-10 w-24 h-24 bg-emerald-500/0 group-hover:bg-emerald-500/20 rounded-full blur-xl transition-all duration-500 pointer-events-none" />
           <div className="flex justify-between items-start text-muted-foreground relative z-10">
             <span className="text-xs font-bold uppercase tracking-wider">Solved Today</span>
             <Calendar className="h-5 w-5 text-emerald-500 group-hover:scale-110 group-hover:rotate-6 transition-transform duration-300" />
           </div>
           <div className="mt-2 relative z-10">
-            <span className="text-3xl font-black text-foreground">{todaySolvedCount}</span>
+            <span className="text-2xl sm:text-3xl font-black text-foreground">{todaySolvedCount}</span>
             <span className="text-xs text-muted-foreground ml-1.5">Questions</span>
           </div>
           <div className="text-[10px] text-muted-foreground mt-1 relative z-10">Questions marked solved in last 24h</div>
         </div>
 
         {/* Companies Completed */}
-        <div className="glass border border-border hover:border-blue-500/50 hover:bg-blue-500/[0.04] hover:shadow-xl hover:shadow-blue-500/10 rounded-2xl p-5 flex flex-col justify-between h-32 relative group overflow-hidden transition-all duration-300 hover:-translate-y-1">
+        <div className="glass border border-border hover:border-blue-500/50 hover:bg-blue-500/[0.04] hover:shadow-xl hover:shadow-blue-500/10 rounded-2xl p-4 sm:p-5 flex flex-col justify-between h-30 sm:h-32 relative group overflow-hidden transition-all duration-300 hover:-translate-y-1">
           <div className="absolute -top-10 -right-10 w-24 h-24 bg-blue-500/0 group-hover:bg-blue-500/20 rounded-full blur-xl transition-all duration-500 pointer-events-none" />
           <div className="flex justify-between items-start text-muted-foreground relative z-10">
             <span className="text-xs font-bold uppercase tracking-wider">Companies Solved</span>
             <CircleDot className="h-5 w-5 text-blue-500 group-hover:scale-110 group-hover:-rotate-6 transition-transform duration-300" />
           </div>
           <div className="mt-2 relative z-10">
-            <span className="text-3xl font-black text-foreground">{companies.completed}</span>
+            <span className="text-2xl sm:text-3xl font-black text-foreground">{companies.completed}</span>
             <span className="text-xs text-muted-foreground ml-1.5">/ {companies.total} ({companies.started} active)</span>
           </div>
           <div className="text-[10px] text-muted-foreground mt-1 relative z-10">Companies where all CSV problems are solved</div>
@@ -228,8 +228,8 @@ export default function StatisticsPage() {
       </div>
 
       {/* Starred / Bookmarked Questions Section */}
-      <div className="glass border border-border rounded-2xl p-6 flex flex-col gap-4">
-        <div className="flex items-center justify-between">
+      <div className="glass border border-border rounded-2xl p-4 sm:p-6 flex flex-col gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
           <div className="flex items-center gap-2">
             <Star fill="currentColor" className="h-5 w-5 text-yellow-500" />
             <h2 className="text-lg font-bold text-foreground">Starred Questions</h2>

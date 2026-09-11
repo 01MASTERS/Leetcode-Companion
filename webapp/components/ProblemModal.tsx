@@ -165,38 +165,38 @@ export default function ProblemModal() {
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 15 }}
           transition={{ duration: 0.2 }}
-          className="glass-blur w-full max-w-3xl rounded-2xl border border-border shadow-2xl relative overflow-hidden flex flex-col max-h-[85vh] text-foreground"
+          className="glass-blur w-full max-w-3xl rounded-2xl border border-border shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh] sm:max-h-[85vh] text-foreground"
         >
           {/* Header */}
-          <div className="p-6 border-b border-border flex items-start justify-between gap-4 flex-shrink-0">
-            <div className="flex-1">
-              <div className="flex items-center gap-3 flex-wrap">
-                <span className="text-muted-foreground font-mono text-sm">#{selectedProblemId}</span>
+          <div className="p-4 sm:p-6 border-b border-border flex items-start justify-between gap-3 sm:gap-4 flex-shrink-0">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                <span className="text-muted-foreground font-mono text-xs sm:text-sm">#{selectedProblemId}</span>
                 {problem && (
-                  <span className={`px-2.5 py-0.5 rounded-full border text-xs font-semibold uppercase tracking-wider ${getDifficultyColor(problem.difficulty)}`}>
+                  <span className={`px-2 sm:px-2.5 py-0.5 rounded-full border text-[10px] sm:text-xs font-semibold uppercase tracking-wider ${getDifficultyColor(problem.difficulty)}`}>
                     {problem.difficulty}
                   </span>
                 )}
                 {problem?.solved ? (
-                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-xs font-semibold select-none flex items-center gap-1">
-                    <CheckCircle className="h-3.5 w-3.5" /> Solved
+                  <span className="px-2 sm:px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-[10px] sm:text-xs font-semibold select-none flex items-center gap-1">
+                    <CheckCircle className="h-3 sm:h-3.5 w-3 sm:w-3.5" /> Solved
                   </span>
                 ) : (
-                  <span className="px-2.5 py-0.5 rounded-full bg-muted/60 border border-border text-muted-foreground text-xs font-semibold select-none flex items-center gap-1">
-                    <Circle className="h-3.5 w-3.5 text-muted-foreground/50" /> Unsolved
+                  <span className="px-2 sm:px-2.5 py-0.5 rounded-full bg-muted/60 border border-border text-muted-foreground text-[10px] sm:text-xs font-semibold select-none flex items-center gap-1">
+                    <Circle className="h-3 sm:h-3.5 w-3 sm:w-3.5 text-muted-foreground/50" /> Unsolved
                   </span>
                 )}
               </div>
-              <h2 className="text-xl font-bold text-foreground mt-2 select-text">
+              <h2 className="text-lg sm:text-xl font-bold text-foreground mt-1.5 sm:mt-2 select-text truncate sm:whitespace-normal">
                 {isLoading ? 'Loading Problem...' : problem?.title}
               </h2>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
               {problem && (
                 <button
                   onClick={() => toggleBookmarkMutation.mutate(!problem.bookmarked)}
-                  className={`p-2 rounded-xl border transition-all cursor-pointer ${
+                  className={`p-1.5 sm:p-2 rounded-xl border transition-all cursor-pointer ${
                     problem.bookmarked
                       ? 'border-yellow-500/40 text-yellow-500 bg-yellow-500/10 shadow-sm'
                       : 'border-border text-muted-foreground hover:text-foreground hover:bg-muted'
@@ -205,29 +205,29 @@ export default function ProblemModal() {
                 >
                   <Star 
                     fill={problem.bookmarked ? "currentColor" : "none"} 
-                    className={`h-5 w-5 ${problem.bookmarked ? 'text-yellow-500' : ''}`} 
+                    className={`h-4 sm:h-5 w-4 sm:w-5 ${problem.bookmarked ? 'text-yellow-500' : ''}`} 
                   />
                 </button>
               )}
               <button
                 onClick={() => setSelectedProblemId(null)}
-                className="p-2 border border-border rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+                className="p-1.5 sm:p-2 border border-border rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
               >
-                <X className="h-5 w-5" />
+                <X className="h-4 sm:h-5 w-4 sm:w-5" />
               </button>
             </div>
           </div>
 
           {/* Loading / Error states */}
           {isLoading && (
-            <div className="flex-1 p-12 flex flex-col items-center justify-center gap-3 text-muted-foreground">
+            <div className="flex-1 p-8 sm:p-12 flex flex-col items-center justify-center gap-3 text-muted-foreground">
               <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-              <span>Fetching details from database...</span>
+              <span className="text-xs sm:text-sm">Fetching details from database...</span>
             </div>
           )}
 
           {error && (
-            <div className="flex-1 p-12 flex flex-col items-center justify-center gap-3 text-rose-500 text-sm">
+            <div className="flex-1 p-8 sm:p-12 flex flex-col items-center justify-center gap-3 text-rose-500 text-xs sm:text-sm">
               <span>Could not load problem details.</span>
               <button
                 onClick={() => setSelectedProblemId(null)}
@@ -240,7 +240,7 @@ export default function ProblemModal() {
 
           {/* Body */}
           {problem && (
-            <div className="flex-grow p-6 overflow-y-auto grid grid-cols-1 md:grid-cols-12 gap-6">
+            <div className="flex-grow p-4 sm:p-6 overflow-y-auto grid grid-cols-1 md:grid-cols-12 gap-5 sm:gap-6">
               {/* Left Column: Actions & Notes */}
               <div className="md:col-span-7 flex flex-col gap-5">
                 {/* Actions Panel */}

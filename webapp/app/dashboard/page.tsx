@@ -91,20 +91,20 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto flex flex-col gap-6 select-text text-foreground">
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto flex flex-col gap-5 sm:gap-6 select-text text-foreground">
       {/* Welcome header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-black text-foreground tracking-tight">LC Company Tracker</h1>
-          <p className="text-sm text-muted-foreground mt-1">Solve interview questions by company frequency, tracks solved status, and avoids CSV editing.</p>
+          <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight">LC Company Tracker</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">Solve interview questions by company frequency, tracks solved status, and avoids CSV editing.</p>
         </div>
       </div>
 
       {/* KPI Cards */}
       {stats && (
-        <div id="tour-stats" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div id="tour-stats" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-5">
           {/* Total Solved */}
-          <div className="glass border border-border hover:border-amber-500/50 hover:bg-amber-500/[0.04] hover:shadow-xl hover:shadow-amber-500/10 rounded-2xl p-5 flex flex-col justify-between h-28 relative group overflow-hidden transition-all duration-300 hover:-translate-y-1">
+          <div className="glass border border-border hover:border-amber-500/50 hover:bg-amber-500/[0.04] hover:shadow-xl hover:shadow-amber-500/10 rounded-2xl p-4 sm:p-5 flex flex-col justify-between h-28 relative group overflow-hidden transition-all duration-300 hover:-translate-y-1">
             <div className="absolute -top-10 -right-10 w-24 h-24 bg-amber-500/0 group-hover:bg-amber-500/20 rounded-full blur-xl transition-all duration-500 pointer-events-none" />
             <div className="flex justify-between items-start text-muted-foreground">
               <span className="text-xs font-bold uppercase tracking-wider">Overall Solved</span>
@@ -117,7 +117,7 @@ export default function Dashboard() {
           </div>
 
           {/* Companies Completed */}
-          <div className="glass border border-border hover:border-emerald-500/50 hover:bg-emerald-500/[0.04] hover:shadow-xl hover:shadow-emerald-500/10 rounded-2xl p-5 flex flex-col justify-between h-28 relative group overflow-hidden transition-all duration-300 hover:-translate-y-1">
+          <div className="glass border border-border hover:border-emerald-500/50 hover:bg-emerald-500/[0.04] hover:shadow-xl hover:shadow-emerald-500/10 rounded-2xl p-4 sm:p-5 flex flex-col justify-between h-28 relative group overflow-hidden transition-all duration-300 hover:-translate-y-1">
             <div className="absolute -top-10 -right-10 w-24 h-24 bg-emerald-500/0 group-hover:bg-emerald-500/20 rounded-full blur-xl transition-all duration-500 pointer-events-none" />
             <div className="flex justify-between items-start text-muted-foreground">
               <span className="text-xs font-bold uppercase tracking-wider">Companies Completed</span>
@@ -130,7 +130,7 @@ export default function Dashboard() {
           </div>
 
           {/* Active Companies */}
-          <div className="glass border border-border hover:border-blue-500/50 hover:bg-blue-500/[0.04] hover:shadow-xl hover:shadow-blue-500/10 rounded-2xl p-5 flex flex-col justify-between h-28 relative group overflow-hidden transition-all duration-300 hover:-translate-y-1">
+          <div className="glass border border-border hover:border-blue-500/50 hover:bg-blue-500/[0.04] hover:shadow-xl hover:shadow-blue-500/10 rounded-2xl p-4 sm:p-5 flex flex-col justify-between h-28 relative group overflow-hidden transition-all duration-300 hover:-translate-y-1">
             <div className="absolute -top-10 -right-10 w-24 h-24 bg-blue-500/0 group-hover:bg-blue-500/20 rounded-full blur-xl transition-all duration-500 pointer-events-none" />
             <div className="flex justify-between items-start text-muted-foreground">
               <span className="text-xs font-bold uppercase tracking-wider">In Progress Tracks</span>
@@ -143,7 +143,7 @@ export default function Dashboard() {
           </div>
 
           {/* Current Streak */}
-          <div className="glass border border-border hover:border-orange-500/50 hover:bg-orange-500/[0.04] hover:shadow-xl hover:shadow-orange-500/10 rounded-2xl p-5 flex flex-col justify-between h-28 relative group overflow-hidden transition-all duration-300 hover:-translate-y-1">
+          <div className="glass border border-border hover:border-orange-500/50 hover:bg-orange-500/[0.04] hover:shadow-xl hover:shadow-orange-500/10 rounded-2xl p-4 sm:p-5 flex flex-col justify-between h-28 relative group overflow-hidden transition-all duration-300 hover:-translate-y-1">
             <div className="absolute -top-10 -right-10 w-24 h-24 bg-orange-500/0 group-hover:bg-orange-500/20 rounded-full blur-xl transition-all duration-500 pointer-events-none" />
             <div className="flex justify-between items-start text-muted-foreground">
               <span className="text-xs font-bold uppercase tracking-wider">Daily Streak</span>
@@ -158,9 +158,9 @@ export default function Dashboard() {
       )}
 
       {/* Sorting and Filtering Row */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-border pb-4">
+      <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 sm:gap-4 border-b border-border pb-4">
         {/* Left: Filter Buttons */}
-        <div id="tour-filters" className="flex items-center gap-2 bg-muted/40 p-1 border border-border rounded-xl flex-wrap">
+        <div id="tour-filters" className="flex items-center gap-1.5 sm:gap-2 bg-muted/40 p-1 border border-border rounded-xl overflow-x-auto no-scrollbar flex-nowrap sm:flex-wrap">
           {(
             [
               { id: 'all', label: 'All Companies' },
@@ -174,7 +174,7 @@ export default function Dashboard() {
               <button
                 key={f.id}
                 onClick={() => setDashboardFilter(f.id)}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
                   active
                     ? 'bg-card text-primary shadow-sm border border-primary/50'
                     : 'border border-transparent text-muted-foreground hover:text-foreground'
@@ -187,7 +187,7 @@ export default function Dashboard() {
         </div>
 
         {/* Right: Custom Sorting Dropdown */}
-        <div className="flex items-center gap-2 relative" ref={sortRef}>
+        <div className="flex items-center justify-between sm:justify-end gap-2 relative self-end sm:self-auto" ref={sortRef}>
           <span className="text-xs text-muted-foreground font-semibold select-none">Sort by</span>
           <button
             type="button"

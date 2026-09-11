@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTrackerStore } from '@/store/useTrackerStore';
-import { Search, Flame, ArrowUpRight, LogOut, Settings as SettingsIcon, ChevronDown, HelpCircle } from 'lucide-react';
+import { Search, Flame, ArrowUpRight, LogOut, Settings as SettingsIcon, ChevronDown, HelpCircle, Menu } from 'lucide-react';
 import { Stats } from '@/types';
 import FreshnessBadge from '@/components/FreshnessBadge';
 
@@ -14,7 +14,7 @@ export default function Navbar() {
   const pathname = usePathname();
   const queryClient = useQueryClient();
   const { data: session, status } = useSession();
-  const { globalSearch, setGlobalSearch, addToast, openGuestGate, startTour } = useTrackerStore();
+  const { globalSearch, setGlobalSearch, addToast, openGuestGate, startTour, toggleMobileSidebar } = useTrackerStore();
   const [searchInput, setSearchInput] = React.useState(globalSearch);
   const [isSyncing, setIsSyncing] = React.useState(false);
   const [theme, setTheme] = React.useState<'dark' | 'light'>('dark');
@@ -128,34 +128,46 @@ export default function Navbar() {
   if (pathname === '/') return null;
 
   return (
-    <header className="glass-blur h-16 border-b border-border flex items-center justify-between px-6 sticky top-0 z-20 w-full text-foreground select-none">
-      {/* Search Input */}
-      <div id="tour-search" className="flex-1 max-w-md relative">
-        <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-muted-foreground">
-          <Search className="h-4 w-4" />
+    <header className="glass-blur h-16 border-b border-border flex items-center justify-between px-3 sm:px-6 sticky top-0 z-20 w-full text-foreground select-none">
+      {/* Left: Mobile hamburger menu & Search Input */}
+      <div className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0 max-w-xs sm:max-w-md mr-2">
+        <button
+          onClick={toggleMobileSidebar}
+          className="md:hidden p-2 -ml-1 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors cursor-pointer shrink-0"
+          title="Open Menu"
+          aria-label="Open Navigation Menu"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+
+        {/* Search Input */}
+        <div id="tour-search" className="flex-1 min-w-0 relative">
+          <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-muted-foreground">
+            <Search className="h-4 w-4 shrink-0" />
+          </div>
+          <input
+            type="text"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder={getPlaceholderText()}
+            className="w-full bg-input-bg border border-border text-xs sm:text-sm text-foreground rounded-xl py-2 pl-9 pr-4 outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-zinc-500 truncate"
+          />
+          {searchInput && (
+            <button
+              onClick={() => {
+                setSearchInput('');
+                setGlobalSearch('');
+              }}
+              className="absolute inset-y-0 right-3 flex items-center text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Clear
+            </button>
+          )}
         </div>
-        <input
-          type="text"
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-          placeholder={getPlaceholderText()}
-          className="w-full bg-input-bg border border-border text-sm text-foreground rounded-xl py-2 pl-9 pr-4 outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-zinc-500"
-        />
-        {searchInput && (
-          <button
-            onClick={() => {
-              setSearchInput('');
-              setGlobalSearch('');
-            }}
-            className="absolute inset-y-0 right-3 flex items-center text-xs text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Clear
-          </button>
-        )}
       </div>
 
       {/* Right Stats & Profile items */}
-      <div className="flex items-center gap-3 md:gap-4">
+      <div className="flex items-center gap-1.5 sm:gap-3 md:gap-4 shrink-0">
         {/* Catalog Freshness Badge */}
         <FreshnessBadge />
 
@@ -298,7 +310,7 @@ export default function Navbar() {
             {/* Sign in with Google Button */}
             <button
               onClick={() => signIn('google')}
-              className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-border/80 bg-card hover:bg-muted/70 hover:border-border text-foreground text-xs font-semibold transition-all shadow-sm active:scale-95 cursor-pointer"
+              className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 rounded-xl border border-border/80 bg-card hover:bg-muted/70 hover:border-border text-foreground text-xs font-semibold transition-all shadow-sm active:scale-95 cursor-pointer shrink-0"
             >
               <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24">
                 <path
@@ -318,7 +330,8 @@ export default function Navbar() {
                   d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
                 />
               </svg>
-              <span>Sign in with Google</span>
+              <span className="hidden sm:inline">Sign in with Google</span>
+              <span className="sm:hidden">Sign In</span>
             </button>
           </div>
         )}

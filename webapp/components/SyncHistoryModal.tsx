@@ -67,16 +67,16 @@ export default function SyncHistoryModal() {
           <div className="absolute -bottom-24 -left-24 w-60 h-60 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
 
           {/* Modal Header */}
-          <div className="flex items-start justify-between p-6 border-b border-border/70 relative">
-            <div className="flex items-center gap-3.5">
-              <div className="flex items-center justify-center w-11 h-11 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 shrink-0">
+          <div className="flex items-start justify-between p-4 sm:p-6 border-b border-border/70 relative">
+            <div className="flex items-center gap-3 sm:gap-3.5 min-w-0">
+              <div className="flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 shrink-0">
                 <History className="h-5 w-5" />
               </div>
-              <div>
-                <h2 className="text-lg font-bold tracking-tight text-foreground flex items-center gap-2">
+              <div className="min-w-0">
+                <h2 className="text-base sm:text-lg font-bold tracking-tight text-foreground flex items-center gap-2 truncate">
                   Catalog Sync History & Audit Trail
                 </h2>
-                <p className="text-xs text-muted-foreground mt-0.5">
+                <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5 truncate sm:whitespace-normal">
                   Automated verification logs tracking upstream changes from{' '}
                   <span className="font-mono text-foreground/80">snehasishroy/leetcode-companywise-interview-questions</span>
                 </p>
@@ -85,7 +85,7 @@ export default function SyncHistoryModal() {
 
             <button
               onClick={closeSyncHistoryModal}
-              className="text-muted-foreground hover:text-foreground p-2 rounded-xl hover:bg-muted/80 transition-colors"
+              className="text-muted-foreground hover:text-foreground p-1.5 sm:p-2 rounded-xl hover:bg-muted/80 transition-colors shrink-0 ml-2"
               aria-label="Close modal"
             >
               <X className="h-4 w-4" />
@@ -93,13 +93,13 @@ export default function SyncHistoryModal() {
           </div>
 
           {/* Overview Metrics Strip */}
-          <div className="grid grid-cols-3 gap-3 p-4 bg-muted/30 border-b border-border/60 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 p-3 sm:p-4 bg-muted/30 border-b border-border/60 text-xs">
             <div className="flex flex-col p-2.5 rounded-xl bg-card/70 border border-border/60">
               <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-semibold uppercase tracking-wider">
                 <Database className="h-3.5 w-3.5 text-primary" />
                 <span>Companies</span>
               </div>
-              <span className="text-base font-bold text-foreground mt-1">
+              <span className="text-sm sm:text-base font-bold text-foreground mt-1">
                 {latest?.totalCompanies ? `${latest.totalCompanies} Tracks` : '658 Tracks'}
               </span>
             </div>
@@ -109,7 +109,7 @@ export default function SyncHistoryModal() {
                 <Layers className="h-3.5 w-3.5 text-amber-400" />
                 <span>Verified Problems</span>
               </div>
-              <span className="text-base font-bold text-foreground mt-1">
+              <span className="text-sm sm:text-base font-bold text-foreground mt-1">
                 {latest?.totalProblems ? `${latest.totalProblems.toLocaleString()} Total` : '3,399 Total'}
               </span>
             </div>
@@ -126,7 +126,7 @@ export default function SyncHistoryModal() {
           </div>
 
           {/* Scrollable Audit Feed */}
-          <div className="p-6 overflow-y-auto flex-1 space-y-6">
+          <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-4 sm:space-y-6">
             {isLoading ? (
               <div className="space-y-4 py-8">
                 <div className="h-16 w-full bg-muted/60 rounded-xl shimmer" />

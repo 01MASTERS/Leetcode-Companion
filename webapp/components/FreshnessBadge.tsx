@@ -49,11 +49,11 @@ export default function FreshnessBadge() {
   if (!isAdmin) {
     return (
       <div
-        className="flex items-center px-3 py-1 rounded-xl bg-card border border-border/80 text-xs text-muted-foreground select-none"
+        className="flex items-center px-2 sm:px-3 py-1 rounded-xl bg-card border border-border/80 text-xs text-muted-foreground select-none shrink-0"
         title={`Questions updated: ${relativeText}`}
       >
         <span className="text-[11px] font-medium text-muted-foreground">
-          Questions updated <strong className="text-foreground font-semibold">{relativeText}</strong>
+          <span className="hidden sm:inline">Questions updated </span><strong className="text-foreground font-semibold">{relativeText}</strong>
         </span>
       </div>
     );
@@ -61,26 +61,26 @@ export default function FreshnessBadge() {
 
   return (
     <div
-      className="relative inline-block"
+      className="relative inline-block shrink-0"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
       {/* Trigger Badge */}
       <button
         onClick={() => openSyncHistoryModal()}
-        className="flex items-center px-3 py-1 rounded-xl bg-card border border-border/80 hover:border-border hover:bg-muted/60 transition-all text-xs text-muted-foreground hover:text-foreground cursor-pointer group shadow-sm select-none"
+        className="flex items-center px-2 sm:px-3 py-1 rounded-xl bg-card border border-border/80 hover:border-border hover:bg-muted/60 transition-all text-xs text-muted-foreground hover:text-foreground cursor-pointer group shadow-sm select-none"
         title={`Catalog updated: ${relativeText}. Click to view sync audit history`}
         aria-label="Catalog freshness status"
       >
         <span className="text-[11px] font-medium text-muted-foreground group-hover:text-foreground transition-colors">
-          Questions updated <strong className="text-foreground font-semibold">{relativeText}</strong>
+          <span className="hidden sm:inline">Questions updated </span><strong className="text-foreground font-semibold">{relativeText}</strong>
         </span>
       </button>
 
       {/* Glassmorphic Hover Popover */}
       {isOpen && (
         <div
-          className="absolute right-0 mt-2 w-80 glass bg-card/95 backdrop-blur-xl border border-border/90 rounded-2xl shadow-2xl p-4 z-50 text-foreground animate-in fade-in slide-in-from-top-1 duration-150 select-none"
+          className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-24px)] glass bg-card/95 backdrop-blur-xl border border-border/90 rounded-2xl shadow-2xl p-4 z-50 text-foreground animate-in fade-in slide-in-from-top-1 duration-150 select-none"
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
         >

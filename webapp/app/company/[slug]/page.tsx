@@ -148,7 +148,7 @@ export default function CompanyPage() {
   const { stats, name } = company;
 
   return (
-    <div className="p-6 max-w-7xl mx-auto flex flex-col gap-6 select-text text-foreground animate-in fade-in duration-300">
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto flex flex-col gap-5 sm:gap-6 select-text text-foreground animate-in fade-in duration-300">
       {/* Back button */}
       <div>
         <button
@@ -161,17 +161,17 @@ export default function CompanyPage() {
       </div>
 
       {/* Sticky Progress Bar & Title Area */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-5">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-5">
         <div>
           <div className="flex items-baseline gap-3 flex-wrap">
-            <h1 className="text-3xl font-black text-foreground tracking-tight">{name}</h1>
+            <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight">{name}</h1>
             {company.updatedAt && (
               <span className="text-xs text-muted-foreground font-medium">
                 Last updated: {formatRelativeTime(company.updatedAt)}
               </span>
             )}
           </div>
-          <p className="text-sm text-muted-foreground mt-2 flex items-center gap-2 flex-wrap">
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1.5 flex items-center gap-2 flex-wrap">
             <span>Progress:</span>
             <strong className="text-foreground">{stats.solvedProblems}</strong> solved
             <span className="text-muted-foreground/60">/</span>
@@ -185,7 +185,7 @@ export default function CompanyPage() {
         <button
           id="tour-company-continue"
           onClick={handleContinueLearning}
-          className="flex items-center justify-center gap-2 px-5 py-3 border border-primary bg-primary text-black font-bold text-sm rounded-xl hover:bg-primary/95 transition-all shadow-xl shadow-primary/5 cursor-pointer w-full md:w-auto"
+          className="flex items-center justify-center gap-2 px-5 py-2.5 sm:py-3 border border-primary bg-primary text-black font-bold text-sm rounded-xl hover:bg-primary/95 transition-all shadow-xl shadow-primary/5 cursor-pointer w-full sm:w-auto shrink-0"
         >
           <Play className="h-4.5 w-4.5 fill-black" />
           <span>Continue Learning</span>
@@ -193,7 +193,7 @@ export default function CompanyPage() {
       </div>
 
       {/* Embedded Sticky Progress Bar */}
-      <div className="w-full bg-muted/60 border border-border p-4 rounded-2xl flex items-center gap-4 flex-wrap sm:flex-nowrap">
+      <div className="w-full bg-muted/60 border border-border p-3.5 sm:p-4 rounded-2xl flex items-center gap-3 sm:gap-4 flex-wrap sm:flex-nowrap">
         <div className="flex-grow w-full bg-muted/80 h-3 rounded-full overflow-hidden border border-border/50">
           <div
             className="bg-gradient-to-r from-primary to-amber-400 h-full rounded-full transition-all duration-700"
@@ -208,7 +208,7 @@ export default function CompanyPage() {
       {/* Recency Categories & Filters Panel */}
       <div id="tour-company-recency" className="flex flex-col gap-4">
         {/* Recency Tabs */}
-        <div className="flex items-center gap-1.5 border-b border-border pb-3 flex-wrap">
+        <div className="flex items-center gap-1.5 border-b border-border pb-3 overflow-x-auto no-scrollbar flex-nowrap sm:flex-wrap">
           {(
             [
               { id: 'all', label: 'All Questions', icon: HelpCircle },
@@ -224,7 +224,7 @@ export default function CompanyPage() {
               <button
                 key={tab.id}
                 onClick={() => setRecencyFilter(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg border transition-all cursor-pointer ${
+                className={`flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 text-xs font-semibold rounded-lg border transition-all cursor-pointer shrink-0 whitespace-nowrap ${
                   isActive
                     ? 'text-primary border-primary/50 bg-card shadow-sm font-bold'
                     : 'text-muted-foreground border-transparent hover:text-foreground hover:bg-muted/35'
@@ -238,9 +238,9 @@ export default function CompanyPage() {
         </div>
 
         {/* Difficulty & Status Filters */}
-        <div className="flex items-center gap-4 flex-wrap justify-between">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 justify-between">
           {/* Left: Status filters */}
-          <div className="flex items-center gap-2 bg-muted/40 p-1 border border-border rounded-xl">
+          <div className="flex items-center gap-1 sm:gap-1.5 bg-muted/40 p-1 border border-border rounded-xl overflow-x-auto no-scrollbar flex-nowrap">
             {(
               [
                 { id: 'all', label: 'All' },
@@ -254,7 +254,7 @@ export default function CompanyPage() {
                 <button
                   key={f.id}
                   onClick={() => setStatusFilter(f.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
                     active
                       ? 'bg-card border border-primary/50 text-primary shadow-sm'
                       : 'border border-transparent text-muted-foreground hover:text-foreground'
@@ -267,7 +267,7 @@ export default function CompanyPage() {
           </div>
 
           {/* Right: Difficulty filters */}
-          <div className="flex items-center gap-2 bg-muted/40 p-1 border border-border rounded-xl">
+          <div className="flex items-center gap-1 sm:gap-1.5 bg-muted/40 p-1 border border-border rounded-xl overflow-x-auto no-scrollbar flex-nowrap">
             {(
               [
                 { id: 'all', label: 'All Difficulties' },
@@ -281,7 +281,7 @@ export default function CompanyPage() {
                 <button
                   key={d.id}
                   onClick={() => setDifficultyFilter(d.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
                     active
                       ? 'bg-card border border-primary/50 text-primary shadow-sm'
                       : 'border border-transparent text-muted-foreground hover:text-foreground'
@@ -298,15 +298,15 @@ export default function CompanyPage() {
       {/* Questions List */}
       <div id="tour-company-table" className="border border-border bg-card rounded-2xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-left border-collapse min-w-[560px] sm:min-w-full">
             <thead>
               <tr className="border-b border-border bg-muted/30 text-xs font-bold text-muted-foreground uppercase tracking-wider select-none">
-                <th className="py-4 px-6 w-16 text-center">Status</th>
-                <th className="py-4 px-6 w-20">ID</th>
-                <th className="py-4 px-6">Problem Title</th>
-                <th className="py-4 px-6 w-32">Difficulty</th>
-                <th className="py-4 px-6 w-32">Frequency</th>
-                <th className="py-4 px-6 w-24 text-right">Actions</th>
+                <th className="py-3 px-2 sm:px-4 w-12 sm:w-16 text-center">Status</th>
+                <th className="hidden sm:table-cell py-3 px-3 sm:px-4 w-16 sm:w-20">ID</th>
+                <th className="py-3 px-3 sm:px-6">Problem Title</th>
+                <th className="py-3 px-2 sm:px-4 w-24 sm:w-28 text-center sm:text-left">Difficulty</th>
+                <th className="py-3 px-2 sm:px-4 w-24 sm:w-32">Frequency</th>
+                <th className="py-3 px-2 sm:px-4 w-14 sm:w-20 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/60">
@@ -319,7 +319,7 @@ export default function CompanyPage() {
                     }`}
                   >
                     {/* Status column */}
-                    <td className="py-3.5 px-6 text-center">
+                    <td className="py-3 px-2 sm:px-4 text-center">
                       <button
                         onClick={() => toggleSolvedMutation.mutate({ id: prob.id, solved: !prob.solved })}
                         disabled={toggleSolvedMutation.isPending && (toggleSolvedMutation.variables as any)?.id === prob.id}
@@ -342,25 +342,25 @@ export default function CompanyPage() {
                       </button>
                     </td>
 
-                    {/* ID column */}
-                    <td className="py-3.5 px-6 text-sm font-mono text-muted-foreground">
+                    {/* ID column - hidden on mobile */}
+                    <td className="hidden sm:table-cell py-3 px-3 sm:px-4 text-sm font-mono text-muted-foreground">
                       #{prob.id}
                     </td>
 
                     {/* Title column */}
-                    <td className="py-3.5 px-6">
+                    <td className="py-3 px-3 sm:px-6">
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => setSelectedProblemId(prob.id)}
-                          className="text-sm font-semibold text-foreground hover:text-primary transition-colors text-left focus:outline-none cursor-pointer"
+                          className="text-xs sm:text-sm font-semibold text-foreground hover:text-primary transition-colors text-left focus:outline-none cursor-pointer"
                         >
                           {prob.title}
                         </button>
                         {prob.bookmarked && (
-                          <Star fill="currentColor" className="h-3.5 w-3.5 text-yellow-500" />
+                          <Star fill="currentColor" className="h-3.5 w-3.5 text-yellow-500 shrink-0" />
                         )}
                         {prob.notes && (
-                          <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded border border-border" title="Has Notes">
+                          <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded border border-border shrink-0" title="Has Notes">
                             Notes
                           </span>
                         )}
@@ -368,16 +368,16 @@ export default function CompanyPage() {
                     </td>
 
                     {/* Difficulty Badge column */}
-                    <td className="py-3.5 px-6">
-                      <span className={`px-2 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wider ${getDifficultyColor(prob.difficulty)}`}>
+                    <td className="py-3 px-2 sm:px-4 text-center sm:text-left">
+                      <span className={`px-2 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wider inline-block ${getDifficultyColor(prob.difficulty)}`}>
                         {prob.difficulty}
                       </span>
                     </td>
 
                     {/* Frequency Column */}
-                    <td className="py-3.5 px-6">
+                    <td className="py-3 px-2 sm:px-4">
                       <div className="flex items-center gap-2">
-                        <div className="w-12 bg-zinc-200 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden">
+                        <div className="w-10 sm:w-12 bg-zinc-200 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden shrink-0">
                           <div
                             className="bg-primary h-full rounded-full"
                             style={{ width: `${prob.frequency}%` }}
@@ -389,17 +389,17 @@ export default function CompanyPage() {
                       </div>
                     </td>
 
-                    {/* Open Button Column */}
-                    <td className="py-3.5 px-6 text-right">
-                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {/* Open Button Column - visible on touch/mobile without hover */}
+                    <td className="py-3 px-2 sm:px-4 text-right">
+                      <div className="flex items-center justify-end gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                         <a
                           href={prob.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="p-1.5 border border-border rounded-lg text-muted-foreground hover:text-primary hover:bg-muted transition-all cursor-pointer"
+                          className="p-1.5 border border-border rounded-lg text-muted-foreground hover:text-primary hover:bg-muted transition-all cursor-pointer inline-flex items-center justify-center"
                           title="Open LeetCode URL"
                         >
-                          <ExternalLink className="h-4 w-4" />
+                          <ExternalLink className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                         </a>
                       </div>
                     </td>
