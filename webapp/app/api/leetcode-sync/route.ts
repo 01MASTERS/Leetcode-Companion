@@ -251,6 +251,12 @@ export async function POST(request: Request) {
     const { username: rawUsername, action, leetcodeSession } = await request.json();
 
     let username = cleanUsername(rawUsername);
+    if (username && !/^[a-zA-Z0-9_\-.]{1,64}$/.test(username)) {
+      return NextResponse.json(
+        { error: 'Invalid LeetCode username format. Only letters, numbers, hyphens, and underscores allowed.' },
+        { status: 400 }
+      );
+    }
     let targetAction = action || 'full';
 
     const userId = await getCurrentUserId();
@@ -682,9 +688,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
   } catch (error: any) {
     console.error('LeetCode sync error:', error);
-    return NextResponse.json(
-      { error: error.message || 'An error occurred during synchronization' },
-      { status: 500 }
-    );
+    const isUserVisibleError =
+      typeof error.message === 'string' &&
+      (error.message.includes('LeetCode') ||
+        error.message.includes('cookie') ||
+        error.message.includes('username') ||
+        error.message.includes('GraphQL') ||
+        error.message.includes('session'));
+
+    const errorMsg = isUserVisibleError || process.env.NODE_ENV === 'development'
+      ? error.message
+      : 'An unexpected error occurred during synchronization. Please try again.';
+
+    return NextResponse.json({ error: errorMsg }, { status: 500 });
   }
 }

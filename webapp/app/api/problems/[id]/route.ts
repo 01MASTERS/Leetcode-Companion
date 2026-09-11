@@ -65,7 +65,8 @@ export async function GET(
     });
   } catch (error: any) {
     console.error('Error fetching problem details:', error);
-    return NextResponse.json({ error: 'Internal Server Error', details: error.message }, { status: 500 });
+    const details = process.env.NODE_ENV === 'development' ? error.message : undefined;
+    return NextResponse.json({ error: 'Internal Server Error', ...(details ? { details } : {}) }, { status: 500 });
   }
 }
 
@@ -245,7 +246,13 @@ export async function PATCH(
     }
 
     if (notes !== undefined) {
-      dataToUpdate.notes = notes;
+      if (typeof notes === 'string' && notes.length > 10000) {
+        return NextResponse.json(
+          { error: 'Note exceeds maximum limit of 10,000 characters.' },
+          { status: 400 }
+        );
+      }
+      dataToUpdate.notes = typeof notes === 'string' ? notes : '';
     }
 
     // Perform transaction to update user progress, log activity, and update streak
@@ -331,6 +338,7 @@ export async function PATCH(
     });
   } catch (error: any) {
     console.error('Error updating problem:', error);
-    return NextResponse.json({ error: 'Internal Server Error', details: error.message }, { status: 500 });
+    const details = process.env.NODE_ENV === 'development' ? error.message : undefined;
+    return NextResponse.json({ error: 'Internal Server Error', ...(details ? { details } : {}) }, { status: 500 });
   }
 }
