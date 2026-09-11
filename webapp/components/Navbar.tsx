@@ -32,6 +32,12 @@ export default function Navbar() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Automatically clear search query when navigating between pages or companies
+  React.useEffect(() => {
+    setSearchInput('');
+    setGlobalSearch('');
+  }, [pathname, setGlobalSearch]);
+
   // Keep local search input in sync if global search is cleared
   React.useEffect(() => {
     setSearchInput(globalSearch);
