@@ -127,33 +127,52 @@ Build a modern, high-converting public landing page at `/` for new and logged-ou
 
 ---
 
-### 🟡 Phase 4: Catalog Sync Timeline & Per-Company Recency Indicators
-> **Priority:** Medium (Transparency & data freshness)
+---
+
+### 🟡 Phase 4: Automated Upstream Sync Pipeline (The Engine of Approach 2)
+> **Priority:** High (Zero-downtime, automated question updates from upstream)
 
 #### Objective
-Display exactly when the website's question dataset was last synchronized from the upstream repository, both globally across the entire catalog and per individual company.
+Build the autonomous GitHub Actions background ingestion worker that polls `snehasishroy/leetcode-companywise-interview-questions` for new commits, extracts modified CSVs, and updates the Supabase cloud database via incremental Prisma upserts without touching user progress or requiring webapp redeployment.
 
 #### Technical Specifications
-1. **Global Catalog Freshness Banner**:
-   * **Compact & Minimalist Display**: Kept intentionally short, clean, and unobtrusive in the header/topbar:
-     * e.g., `⚡ Questions updated: Yesterday` or `⚡ Questions updated: 2 days ago` / `Last week` / `Last month` (relative time).
-   * **Interactive Hover Tooltip / Popover**:
-     * Hovering over the badge reveals a sleek glassmorphic card with exact details:
-       * **Exact Date & Time**: e.g., `Sep 10, 2026, 10:30 PM UTC`
-       * **Upstream Commit**: `e095c25` (clickable link to upstream commit)
-       * **Summary**: `12 companies refreshed, 45 questions updated`
-   * Clicking the banner opens the full **Catalog Timeline Modal** showing complete sync logs and history.
-
-2. **Per-Company Last Updated Indicator**:
-   * On the company problem page (`/company/[slug]`), show a subtle freshness badge:
-     * e.g., `Updated: Last 30 Days (via upstream sync)`.
-   * Highlights if a company's question list has received recent updates.
-3. **Automated Upstream Ingestion**:
-   * GitHub Actions workflow that detects new commits on `snehasishroy/leetcode-companywise-interview-questions`, extracts updated CSVs, executes non-destructive database upserts, and logs the commit hash and timestamp into `SyncMetadata`.
+1. **GitHub Actions Scheduled Worker (`.github/workflows/upstream-sync.yml`)**:
+   * Runs daily (or every 12h) + manual `workflow_dispatch`.
+   * Checks upstream commit SHA via GitHub API.
+   * Identifies specifically changed or newly added company CSV files.
+2. **Incremental Ingestion Script (`webapp/scripts/sync-upstream.ts`)**:
+   * Uses PapaParse to stream only modified CSV files.
+   * Executes `prisma.problem.upsert` and `prisma.companyProblem.upsert`.
+   * Updates only catalog attributes (`difficulty`, `acceptance`, `frequency`, recency flags).
+   * **Guarantees 100% safety**: Never deletes or modifies `UserProblemProgress`, `UserStats`, or personal notes.
+3. **Audit Log Recording**:
+   * Writes the sync run details (`commitSha`, timestamp, updated company count, questions added) into the `SyncMetadata` table in Supabase.
 
 ---
 
-### 🟠 Phase 5: Interactive Onboarding Tour (Driver.js) & LeetCode Session Setup
+### 🟢 Phase 5: Catalog Freshness UI & Per-Company Indicators
+> **Priority:** Medium (Visual transparency and data freshness for users)
+
+#### Objective
+Display exactly when the catalog was last synced using a clean, short relative timestamp in the header, with a rich hover popover and full audit modal.
+
+#### Technical Specifications
+1. **Minimalist Header Freshness Badge**:
+   * Unobtrusive display in the navigation bar/header:
+     * e.g., `⚡ Questions updated: Yesterday` or `⚡ Questions updated: 3 days ago` / `Last month`.
+2. **Interactive Hover Tooltip / Popover**:
+   * Hovering over the badge displays a glassmorphic popover:
+     * **Exact Date & Time**: `Sep 10, 2026, 10:30 PM UTC`
+     * **Upstream Commit**: `#e095c25` (clickable link to upstream commit)
+     * **Summary**: `12 companies refreshed, 45 questions updated`
+3. **Catalog Timeline Modal**:
+   * Clicking the banner opens a modal displaying a chronological audit feed of past upstream sync events.
+4. **Per-Company Last Updated Indicator**:
+   * Inside individual company tracks (`/company/[slug]`), displays a badge indicating when that specific company's question list was last refreshed.
+
+---
+
+### 🟠 Phase 6: Interactive Onboarding Tour (Driver.js) & LeetCode Session Setup
 > **Priority:** Medium (Onboarding & feature adoption)
 
 #### Objective
@@ -161,14 +180,13 @@ Provide an interactive, step-by-step guided tooltip tour powered by **Driver.js*
 
 #### Technical Specifications
 1. **Driver.js Integration**:
-   * Install and configure `driver.js`.
-   * Custom theme matching our dark mode / glassmorphic UI.
+   * Install and configure `driver.js` with our dark glassmorphic styling.
    * Auto-triggers on first visit/login (stored as `hasSeenTour` in user preferences / `localStorage`).
    * Can be re-launched anytime via a **"Take Tour"** or help icon in the Navbar.
 2. **Tour Step Sequence**:
    * **Step 1: Welcome & Directory**: Overview of the 650+ company directory and search bar.
    * **Step 2: Recency Filters**: Explains the 30-Day, 3-Month, 6-Month, and All-Time interview buckets.
-   * **Step 3: Problem Modal & Personal Notes**: How to view problem details, acceptance rates, and write personal solutions notes.
+   * **Step 3: Problem Modal & Personal Notes**: How to view problem details, acceptance rates, and write personal notes.
    * **Step 4: LeetCode Session Setup (Spotlight)**:
      * Highlights the synchronization feature.
      * Explains what the `LEETCODE_SESSION` cookie is and why it guarantees 100% accurate tracking.
@@ -178,21 +196,48 @@ Provide an interactive, step-by-step guided tooltip tour powered by **Driver.js*
 
 ---
 
-## 🚀 Execution Order & Dependencies
+### 🟣 Phase 7: Production Deployment & Cloud CI/CD
+> **Priority:** High (Final delivery & public availability)
+
+#### Objective
+Deploy the production webapp on **Vercel** (or chosen cloud platform), configure production environment variables, set up Google OAuth redirect URIs, and verify end-to-end functionality.
+
+#### Technical Specifications
+1. **Cloud Hosting Setup (Vercel)**:
+   * Connect `01MASTERS/Leetcode-Companion` repository to Vercel.
+   * Configure environment variables: `DATABASE_URL`, `DIRECT_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`.
+2. **Google OAuth Production Redirect URI**:
+   * Register production domain (e.g. `https://leetcode-companion.vercel.app/api/auth/callback/google`) in Google Cloud Console.
+3. **GitHub Secrets for Upstream Sync Worker**:
+   * Add `DATABASE_URL` as a repository secret in GitHub to allow the Phase 4 GitHub Action to connect to Supabase.
+4. **End-to-End Verification**:
+   * Verify Google login and logout.
+   * Verify Guest mode browsing and solve toggling.
+   * Test LeetCode sync with user account.
+   * Test manual trigger of upstream sync workflow.
+
+---
+
+## 🚀 Complete Execution Order & Dependencies
 
 ```mermaid
 graph TD
-    P1[Phase 1: Cloud Database Migration<br/>Supabase PostgreSQL + Prisma Schema] --> P2[Phase 2: Auth.js Google OAuth<br/>& Guest Mode Access Control]
+    P1[Phase 1: Cloud DB Migration<br/>Supabase PostgreSQL + Multi-tenant Schema] --> P2[Phase 2: Auth.js Google OAuth<br/>& Guest Mode Access Control]
     P2 --> P3[Phase 3: Public Landing Page<br/>& Route Architecture]
-    P1 --> P4[Phase 4: Catalog Sync Timeline<br/>& Per-Company Recency Indicators]
-    P3 --> P5[Phase 5: Driver.js Interactive Tour<br/>& LeetCode Session Spotlight]
-    P4 --> P5
+    P1 --> P4[Phase 4: Automated Upstream Sync Pipeline<br/>GitHub Actions + Prisma Upsert Engine]
+    P4 --> P5[Phase 5: Catalog Freshness UI<br/>Header Relative Badge & Hover Popover]
+    P3 --> P6[Phase 6: Driver.js Interactive Tour<br/>& LeetCode Session Spotlight]
+    P5 --> P7[Phase 7: Production Deployment & CI/CD<br/>Vercel + Google Redirect URIs + GitHub Secrets]
+    P6 --> P7
 ```
 
 | Phase | Title | Key Output | Complexity |
 | :--- | :--- | :--- | :--- |
-| **Phase 1** | Cloud DB Migration | Supabase Postgres + Multi-tenant schema | Medium |
+| **Phase 1** | Cloud DB Migration | Supabase Postgres + Multi-tenant Prisma schema | Medium |
 | **Phase 2** | Auth & Guest Mode | Google OAuth + Guest Mode localStorage gate | Medium |
 | **Phase 3** | Landing Page & Routing | Public Hero at `/`, App at `/dashboard` | Low-Medium |
-| **Phase 4** | Catalog Sync Timeline | Upstream sync timeline & company freshness | Low-Medium |
-| **Phase 5** | Driver.js Tour & Session | Step-by-step onboarding walkthrough | Low |
+| **Phase 4** | Automated Upstream Ingestion | GitHub Action cron + incremental Prisma upsert | Medium |
+| **Phase 5** | Catalog Freshness UI | Short relative banner, hover popover, audit modal | Low |
+| **Phase 6** | Driver.js Tour & Session | Step-by-step onboarding walkthrough | Low |
+| **Phase 7** | Production Deployment | Vercel deployment + production secrets & OAuth URIs | Low-Medium |
+

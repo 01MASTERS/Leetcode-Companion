@@ -21,11 +21,14 @@
 | Phase | Description | Status | Target Deliverable |
 | :---: | :--- | :---: | :--- |
 | **0** | **Repo Detach & Setup** | ✅ **Completed** | Standalone repo created on GitHub (`01MASTERS/Leetcode-Companion`), history cleaned, initial commit pushed. |
-| **1** | **Cloud DB Migration** | ⏳ **Ready to Start** | Supabase (PostgreSQL) setup, multi-tenant Prisma schema (`UserProblemProgress`, `SyncMetadata`), non-destructive upsert seed. |
+| **1** | **Cloud DB Migration** | ⏳ **In Progress** | Supabase (PostgreSQL) setup, multi-tenant Prisma schema (`UserProblemProgress`, `SyncMetadata`), non-destructive upsert seed. |
 | **2** | **Auth & Guest Mode** | ⏸️ Queued | Auth.js v5 with Google OAuth, Navbar avatar/logout, Guest Mode with `localStorage` fallback & cloud lockouts. |
 | **3** | **Landing Page & Routing** | ⏸️ Queued | Public Hero Landing at `/` for guests, auto-redirect to `/dashboard` for logged-in users, CTAs for Google Sign-In & Guest exploration. |
-| **4** | **Catalog Freshness** | ⏸️ Queued | Short relative time header banner (`⚡ Questions updated: Yesterday`) with hover popover for exact details, per-company update badge, upstream sync pipeline. |
-| **5** | **Driver.js Tour** | ⏸️ Queued | Interactive step-by-step tooltip walkthrough with spotlight explaining the optional `LEETCODE_SESSION` cookie. |
+| **4** | **Upstream Sync Pipeline** | ⏸️ Queued | Autonomous GitHub Action + incremental Prisma upsert worker (Approach 2 Engine) for zero-downtime updates. |
+| **5** | **Catalog Freshness UI** | ⏸️ Queued | Minimalist relative time header banner (`⚡ Questions updated: Yesterday`) with hover popover for exact details, per-company badge, audit log modal. |
+| **6** | **Driver.js Tour** | ⏸️ Queued | Interactive step-by-step tooltip walkthrough with spotlight explaining the optional `LEETCODE_SESSION` cookie. |
+| **7** | **Production Deployment** | ⏸️ Queued | Vercel deployment + production secrets + Google OAuth redirect URIs + end-to-end verification. |
+
 
 ---
 
