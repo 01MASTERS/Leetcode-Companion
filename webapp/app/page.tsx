@@ -561,33 +561,52 @@ export default function LandingPage() {
       </section>
 
       {/* Minimal Footer */}
-      <footer className="mt-auto border-t border-border/80 py-8 px-4 sm:px-6 text-center text-xs text-muted-foreground">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <img src="/logo.png" alt="Logo" className="h-5 w-5 rounded-md object-contain" />
-            <span className="font-bold text-foreground">LC Companion</span>
-            <span>&bull;</span>
-            <span>Open Source Community Project</span>
+      <footer className="mt-auto border-t border-border/80 py-8 px-4 sm:px-6 text-xs text-muted-foreground">
+        <div className="max-w-7xl mx-auto flex flex-col gap-5">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <img src="/logo.png" alt="Logo" className="h-5 w-5 rounded-md object-contain" />
+              <span className="font-bold text-foreground">LC Companion</span>
+              <span>&bull;</span>
+              <span>Open Source Community Project</span>
+            </div>
+
+            <div className="flex items-center gap-4 flex-wrap justify-center">
+              <Link href="/dashboard" className="hover:text-foreground transition-colors">
+                Companies (658)
+              </Link>
+              <Link href="/statistics" className="hover:text-foreground transition-colors">
+                Statistics
+              </Link>
+              <Link href="/settings" className="hover:text-foreground transition-colors">
+                Sync Settings
+              </Link>
+              <a
+                href="https://github.com/01MASTERS/Leetcode-Companion"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-foreground transition-colors flex items-center gap-1 font-semibold"
+              >
+                GitHub <ExternalLink className="h-3 w-3" />
+              </a>
+            </div>
           </div>
 
-          <div className="flex items-center gap-4">
-            <Link href="/dashboard" className="hover:text-foreground transition-colors">
-              Companies (658)
-            </Link>
-            <Link href="/statistics" className="hover:text-foreground transition-colors">
-              Statistics
-            </Link>
-            <Link href="/settings" className="hover:text-foreground transition-colors">
-              Sync Settings
-            </Link>
-            <a
-              href="https://github.com/01MASTERS/Leetcode-Companion"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-foreground transition-colors flex items-center gap-1 font-semibold"
-            >
-              GitHub <ExternalLink className="h-3 w-3" />
-            </a>
+          {/* Upstream Attribution & Credits (Subtle & respectful) */}
+          <div className="pt-4 border-t border-border/40 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-muted-foreground/75 text-center sm:text-left">
+            <p>
+              Special credits to{' '}
+              <a
+                href="https://github.com/snehasishroy/leetcode-companywise-interview-questions"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-muted-foreground hover:text-primary transition-colors underline decoration-border/60 hover:decoration-primary underline-offset-4"
+              >
+                Snehasish Roy (snehasishroy/leetcode-companywise-interview-questions)
+              </a>{' '}
+              for the original curated company-wise interview frequency datasets.
+            </p>
+            <p>© {new Date().getFullYear()} LC Companion.</p>
           </div>
         </div>
       </footer>
