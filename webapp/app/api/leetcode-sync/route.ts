@@ -285,6 +285,15 @@ export async function POST(request: Request) {
       }
     }
 
+    // Action: Delete stored session cookie
+    if (targetAction === 'delete-cookie') {
+      await prisma.userSyncConfig.updateMany({
+        where: { userId },
+        data: { leetcodeSession: '' },
+      });
+      return NextResponse.json({ success: true, message: 'Session cookie removed successfully.' });
+    }
+
     // Get or create current sync configuration for user
     let config = await prisma.userSyncConfig.findUnique({ where: { userId } });
     if (!config) {

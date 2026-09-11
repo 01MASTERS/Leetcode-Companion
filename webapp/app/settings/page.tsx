@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useSession, signIn } from 'next-auth/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTrackerStore } from '@/store/useTrackerStore';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Trash2 } from 'lucide-react';
 import { formatDate } from '@/utils/helpers';
 import { Stats } from '@/types';
 
@@ -59,6 +59,30 @@ export default function SettingsPage() {
       addToast(err.message || 'Error checking session cookie.', 'error');
     } finally {
       setIsDetecting(false);
+    }
+  };
+
+  // Delete or clear session cookie
+  const handleDeleteCookie = async () => {
+    if (syncConfig?.hasSessionCookie) {
+      try {
+        const res = await fetch('/api/leetcode-sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'delete-cookie' }),
+        });
+        if (res.ok) {
+          setLeetcodeSession('');
+          queryClient.invalidateQueries({ queryKey: ['stats'] });
+          addToast('LeetCode session cookie removed successfully.', 'info');
+        } else {
+          addToast('Could not delete session cookie.', 'error');
+        }
+      } catch (err: any) {
+        addToast(err.message || 'Error deleting session cookie.', 'error');
+      }
+    } else {
+      setLeetcodeSession('');
     }
   };
 
@@ -218,22 +242,41 @@ export default function SettingsPage() {
 
             {/* Authenticated Cookie Input */}
             <div id="tour-settings-cookie" className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                LeetCode Session Cookie (Optional)
-              </label>
-              <input
-                type="password"
-                value={leetcodeSession}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setLeetcodeSession(val);
-                  if (val && val.length > 50 && val !== '••••••••••••••••') {
-                    handleDetectUsername(val);
-                  }
-                }}
-                placeholder={syncConfig?.hasSessionCookie ? "Session cookie saved (securely stored locally)" : "Enter LEETCODE_SESSION cookie value"}
-                className="bg-input-bg border border-border text-sm text-foreground rounded-xl p-3 outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-muted-foreground"
-              />
+              <div className="flex justify-between items-baseline">
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                  LeetCode Session Cookie (Optional)
+                </label>
+                {syncConfig?.hasSessionCookie && (
+                  <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-500/20">
+                    Cookie Saved
+                  </span>
+                )}
+              </div>
+              <div className="relative flex items-center">
+                <input
+                  type="password"
+                  value={leetcodeSession}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setLeetcodeSession(val);
+                    if (val && val.length > 50 && val !== '••••••••••••••••') {
+                      handleDetectUsername(val);
+                    }
+                  }}
+                  placeholder={syncConfig?.hasSessionCookie ? "Session cookie saved (securely stored locally)" : "Enter LEETCODE_SESSION cookie value"}
+                  className="w-full bg-input-bg border border-border text-sm text-foreground rounded-xl p-3 pr-10 outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-muted-foreground"
+                />
+                {(leetcodeSession || syncConfig?.hasSessionCookie) && (
+                  <button
+                    type="button"
+                    onClick={handleDeleteCookie}
+                    title="Delete saved session cookie"
+                    className="absolute right-2.5 p-1.5 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-all cursor-pointer focus:outline-none"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
               <p className="text-[10px] text-muted-foreground leading-relaxed leading-normal">
                 How to get it: Log in to LeetCode &rarr; Open DevTools (F12) &rarr; Application/Storage &rarr; Cookies &rarr; Copy the value of <strong>LEETCODE_SESSION</strong>.
               </p>
