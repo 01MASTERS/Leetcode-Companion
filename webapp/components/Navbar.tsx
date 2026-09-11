@@ -72,15 +72,34 @@ export default function Navbar() {
 
   const leetcodeUser = stats?.syncConfig?.leetcodeUser;
 
-  // Background incremental sync on mount and every 60 seconds (only if user is authenticated)
+  // Track in-flight state and timestamp to prevent request storms and redundant calls
+  const isSyncingRef = React.useRef(false);
+  const lastSyncTimeRef = React.useRef(0);
+
+  // Background incremental sync: Visibility-aware and Focus-triggered
   React.useEffect(() => {
     if (!leetcodeUser || status !== 'authenticated') return;
 
     let isMounted = true;
 
-    const performSync = async () => {
+    const performSync = async (reason = 'timer') => {
+      // 1. Page Visibility Check: Never poll when browser tab is minimized or hidden
+      if (typeof document !== 'undefined' && document.hidden) return;
+
+      // 2. Prevent overlapping concurrent sync calls
+      if (isSyncingRef.current) return;
+
+      // 3. Cooldown: For window focus / visibility triggers, throttle to at least 30 seconds
+      const now = Date.now();
+      if ((reason === 'focus' || reason === 'visibility') && now - lastSyncTimeRef.current < 30000) {
+        return;
+      }
+
       try {
+        isSyncingRef.current = true;
         setIsSyncing(true);
+        lastSyncTimeRef.current = now;
+
         const res = await fetch('/api/leetcode-sync', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -103,17 +122,35 @@ export default function Navbar() {
         console.error('Background incremental sync error:', err);
       } finally {
         if (isMounted) {
+          isSyncingRef.current = false;
           setIsSyncing(false);
         }
       }
     };
 
-    performSync();
-    const intervalId = setInterval(performSync, 60000);
+    // Initial sync on mount
+    performSync('mount');
+
+    // Regular active-interval poll (only runs when tab is actively visible)
+    const intervalId = setInterval(() => performSync('timer'), 60000);
+
+    // Event 1: Window Focus (triggers immediately when user returns from solving on LeetCode)
+    const handleFocus = () => performSync('focus');
+    window.addEventListener('focus', handleFocus);
+
+    // Event 2: Page Visibility change (triggers when tab is un-minimized / brought to foreground)
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        performSync('visibility');
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       isMounted = false;
       clearInterval(intervalId);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [leetcodeUser, status, addToast, queryClient]);
 
