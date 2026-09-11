@@ -11,8 +11,11 @@ export default function Sidebar() {
   const pathname = usePathname();
   const { sidebarOpen, toggleSidebar } = useTrackerStore();
 
+  // Hide sidebar completely on public landing page
+  if (pathname === '/') return null;
+
   const navItems = [
-    { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+    { name: 'Companies', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Statistics', href: '/statistics', icon: BarChart3 },
     { name: 'Settings', href: '/settings', icon: Settings },
   ];
@@ -34,7 +37,7 @@ export default function Sidebar() {
 
       {/* Brand header */}
       <div className="h-16 flex items-center px-4 border-b border-border flex-shrink-0 overflow-hidden">
-        <Link href="/" className="flex items-center gap-3 w-full justify-center sidebarOpen:justify-start">
+        <Link href="/dashboard" className="flex items-center gap-3 w-full justify-center sidebarOpen:justify-start">
           <div className="flex items-center justify-center flex-shrink-0">
             <img src="/logo.png" alt="LC Tracker Logo" className="h-9 w-9 rounded-xl object-contain shadow-sm" />
           </div>
@@ -54,7 +57,9 @@ export default function Sidebar() {
       {/* Nav Menu */}
       <nav className="flex-1 py-6 px-3 flex flex-col gap-1.5 overflow-y-auto">
         {navItems.map((item) => {
-          const isActive = pathname === item.href;
+          const isActive = item.href === '/dashboard' 
+            ? (pathname === '/dashboard' || pathname.startsWith('/company/'))
+            : pathname === item.href;
           const Icon = item.icon;
 
           return (

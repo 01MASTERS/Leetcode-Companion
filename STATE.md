@@ -10,8 +10,8 @@
 
 * **Project Name**: LeetCode Companion
 * **Repository**: [https://github.com/01MASTERS/Leetcode-Companion](https://github.com/01MASTERS/Leetcode-Companion)
-* **Current Status**: 🚀 **Phase 2 Completed — Ready for Phase 3 (Landing Page & Routing)**
-* **Active Phase**: **Phase 3: Public Landing Page & Authenticated Routing**
+* **Current Status**: 🚀 **Phase 3 Completed — Ready for Phase 4 (Upstream Sync Pipeline)**
+* **Active Phase**: **Phase 4: Autonomous Upstream Sync Pipeline (Approach 2 Engine)**
 * **Upstream Data Source**: [snehasishroy/leetcode-companywise-interview-questions](https://github.com/snehasishroy/leetcode-companywise-interview-questions)
 * **Cloud Database**: **Supabase (PostgreSQL 17.6)** (`nlvcttlenjcntekgarat` in `ap-south-1`)
 
@@ -24,8 +24,8 @@
 | **0** | **Repo Detach & Setup** | ✅ **Completed** | Standalone repo created on GitHub (`01MASTERS/Leetcode-Companion`), history cleaned, initial commit pushed. |
 | **1** | **Cloud DB Migration** | ✅ **Completed** | Supabase (PostgreSQL) setup, multi-tenant Prisma schema (`UserProblemProgress`, `SyncMetadata`), 658 companies & 3,399 problems seeded, API routes updated & verified. |
 | **2** | **Auth & Guest Mode** | ✅ **Completed** | Auth.js v5 with Google OAuth, Navbar user avatar/dropdown & Guest Mode sign-in buttons, GuestGateModal, role-gating on API routes (`/api/leetcode-sync`, `/api/problems/[id]`). |
-| **3** | **Landing Page & Routing** | ⏳ **Ready to Start** | Public Hero Landing at `/` for guests, auto-redirect to `/dashboard` for logged-in users, CTAs for Google Sign-In & Guest exploration. |
-| **4** | **Upstream Sync Pipeline** | ⏸️ Queued | Autonomous GitHub Action + incremental Prisma upsert worker (Approach 2 Engine) for zero-downtime updates. |
+| **3** | **Landing Page & Routing** | ✅ **Completed** | High-converting Public Landing at `/` focused on figures/metrics, auto-redirect to `/dashboard` for logged-in users, prominent Google Sign-In & Guest exploration CTAs. |
+| **4** | **Upstream Sync Pipeline** | ⏳ **Ready to Start** | Autonomous GitHub Action + incremental Prisma upsert worker (Approach 2 Engine) for zero-downtime updates. |
 | **5** | **Catalog Freshness UI** | ⏸️ Queued | Minimalist relative time header banner (`⚡ Questions updated: Yesterday`) with hover popover for exact details, per-company badge, audit log modal. |
 | **6** | **Driver.js Tour** | ⏸️ Queued | Interactive step-by-step tooltip walkthrough with spotlight explaining the optional `LEETCODE_SESSION` cookie. |
 | **7** | **Production Deployment** | ⏸️ Queued | Vercel deployment + production secrets + Google OAuth redirect URIs + end-to-end verification. |
@@ -66,6 +66,17 @@
       * Restricted `ActivityLog` entries exclusively to genuine recent solves matching our catalog.
       * Added `calculateStreak` helper to compute actual active daily solve streaks from real LeetCode submission timestamps.
       * Updated Google OAuth Client ID and Client Secret in `webapp/.env`.
+  * **Phase 3 Completed**:
+    * Created high-converting Public Landing Page at `/` with heavy emphasis on figures and real-time metrics:
+      * 4 Core Metric cards: **658 Companies Active**, **3,399 Unique Questions Cataloged**, **17,819 Frequency Tags**, and **< 1.5s Batch Upsert Performance**.
+      * Multi-segment difficulty distribution bar displaying the exact database split: 819 Easy (24.1%), 1,805 Medium (53.1%), and 775 Hard (22.8%).
+      * Top Tech Giants leaderboard with real database problem counts (Google: 2,325, Amazon: 1,988, Microsoft: 1,386, Meta: 1,381, Bloomberg: 1,213, Uber: 362, TikTok: 349, Oracle: 313).
+      * Feature pillars detailing Automated LeetCode Sync, Company Progress Analytics, and Interview Notes & Starred Bank.
+      * High-visibility **"Sign in with Google"** and **"Explore as Guest"** CTA buttons with radiant glow.
+    * Separated routes cleanly: relocated main company tracker to `/dashboard`.
+    * Implemented seamless routing: authenticated users opening `/` are automatically redirected to `/dashboard`.
+    * Conditionally hid `Sidebar` and `Navbar` when on `/` to provide a stunning full-width canvas.
+    * Verified visual layout and guest navigation end-to-end via headless browser testing.
   * **Phase 2 Completed**:
     * Installed `next-auth@5.0.0-beta.32` and `@auth/prisma-adapter@2.11.3`.
     * Configured Auth.js with Google OAuth provider, JWT session strategy, and Prisma adapter in `webapp/auth.ts` and `webapp/app/api/auth/[...nextauth]/route.ts`.
@@ -92,8 +103,12 @@
 
 ## 🎯 Next Immediate Action
 
-👉 **Execute Phase 3: Public Landing Page & Authenticated Routing**:
-1. Design a sleek, high-converting public landing page at `/` for unauthenticated visitors (Hero section, dynamic feature preview, stats showcase, Google OAuth CTA, and "Continue as Guest" CTA).
-2. Move the main app dashboard to `/dashboard` (or intelligent conditional routing where authenticated users landing on `/` are smoothly routed to dashboard).
-3. Update navigation links and middleware / route handlers accordingly.
+👉 **Execute Phase 4: Autonomous Upstream Sync Pipeline (Approach 2 Engine)**:
+1. Create GitHub Actions workflow (`.github/workflows/upstream-sync.yml`) triggered on daily cron and manual `workflow_dispatch`.
+2. Implement incremental sync worker script (`scripts/sync-upstream.ts`):
+   - Clone/fetch upstream repository `snehasishroy/leetcode-companywise-interview-questions`.
+   - Compute commit SHA diff or file hash checks against `SyncMetadata` in Supabase.
+   - Incrementally parse new/modified company CSVs and batch upsert new problems and company-problem links without dropping user progress.
+   - Record sync run in `SyncMetadata` (commit SHA, timestamp, companies updated count).
+3. Test pipeline against Supabase database to verify zero-downtime execution.
 

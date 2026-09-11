@@ -124,6 +124,9 @@ export default function Navbar() {
     return 'Search 650+ companies...';
   };
 
+  // Hide dashboard navbar on public landing page
+  if (pathname === '/') return null;
+
   return (
     <header className="glass-blur h-16 border-b border-border flex items-center justify-between px-6 sticky top-0 z-20 w-full text-foreground select-none">
       {/* Search Input */}
