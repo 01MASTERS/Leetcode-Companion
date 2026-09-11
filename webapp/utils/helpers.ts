@@ -1,13 +1,13 @@
 export function getDifficultyColor(difficulty: string): string {
   switch (difficulty.toLowerCase()) {
     case 'easy':
-      return 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20';
+      return 'text-emerald-700 bg-emerald-50 border-emerald-200 dark:text-emerald-400 dark:bg-emerald-500/10 dark:border-emerald-500/20';
     case 'medium':
-      return 'text-amber-500 bg-amber-500/10 border-amber-500/20';
+      return 'text-amber-700 bg-amber-50 border-amber-200 dark:text-amber-400 dark:bg-amber-500/10 dark:border-amber-500/20';
     case 'hard':
-      return 'text-rose-500 bg-rose-500/10 border-rose-500/20';
+      return 'text-rose-700 bg-rose-50 border-rose-200 dark:text-rose-400 dark:bg-rose-500/10 dark:border-rose-500/20';
     default:
-      return 'text-zinc-500 bg-zinc-500/10 border-zinc-500/20';
+      return 'text-zinc-700 bg-zinc-100 border-zinc-200 dark:text-zinc-400 dark:bg-zinc-500/10 dark:border-zinc-500/20';
   }
 }
 

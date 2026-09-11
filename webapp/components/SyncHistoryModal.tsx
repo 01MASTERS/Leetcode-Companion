@@ -69,7 +69,7 @@ export default function SyncHistoryModal() {
           {/* Modal Header */}
           <div className="flex items-start justify-between p-4 sm:p-6 border-b border-border/70 relative">
             <div className="flex items-center gap-3 sm:gap-3.5 min-w-0">
-              <div className="flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 shrink-0">
+              <div className="flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 dark:bg-emerald-500/10 dark:border-emerald-500/20 dark:text-emerald-400 shrink-0">
                 <History className="h-5 w-5" />
               </div>
               <div className="min-w-0">
@@ -106,7 +106,7 @@ export default function SyncHistoryModal() {
 
             <div className="flex flex-col p-2.5 rounded-xl bg-card/70 border border-border/60">
               <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-semibold uppercase tracking-wider">
-                <Layers className="h-3.5 w-3.5 text-amber-400" />
+                <Layers className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
                 <span>Verified Problems</span>
               </div>
               <span className="text-sm sm:text-base font-bold text-foreground mt-1">
@@ -116,7 +116,7 @@ export default function SyncHistoryModal() {
 
             <div className="flex flex-col p-2.5 rounded-xl bg-card/70 border border-border/60">
               <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-semibold uppercase tracking-wider">
-                <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
+                <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
                 <span>Sync Schedule</span>
               </div>
               <span className="text-xs font-semibold text-foreground mt-1.5 leading-snug">

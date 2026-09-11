@@ -174,10 +174,10 @@ export default function Navbar() {
         {/* Streak counter */}
         {stats && stats.streak > 0 && status === 'authenticated' && (
           <div
-            className="flex items-center gap-1 px-2.5 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-xl text-xs font-semibold select-none"
+            className="flex items-center gap-1 px-2.5 py-1 bg-amber-50 border border-amber-200 text-amber-800 dark:bg-amber-500/10 dark:border-amber-500/20 dark:text-amber-400 rounded-xl text-xs font-semibold select-none"
             title={`${stats.streak} Day Streak`}
           >
-            <Flame className="h-3.5 w-3.5 fill-amber-500" />
+            <Flame className="h-3.5 w-3.5 fill-amber-600 text-amber-600 dark:fill-amber-400 dark:text-amber-400" />
             <span>{stats.streak}</span>
           </div>
         )}
@@ -301,9 +301,9 @@ export default function Navbar() {
             {/* Guest pill */}
             <button
               onClick={() => openGuestGate()}
-              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 border border-amber-500/20 rounded-full text-[11px] font-medium text-amber-500 hover:bg-amber-500/20 transition-colors"
+              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 border border-amber-200 rounded-full text-[11px] font-medium text-amber-800 hover:bg-amber-100 dark:bg-amber-500/10 dark:border-amber-500/20 dark:text-amber-400 dark:hover:bg-amber-500/20 transition-colors"
             >
-              <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-600 dark:bg-amber-500 animate-pulse" />
               Guest Mode
             </button>
 

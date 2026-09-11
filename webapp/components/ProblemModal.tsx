@@ -178,7 +178,7 @@ export default function ProblemModal() {
                   </span>
                 )}
                 {problem?.solved ? (
-                  <span className="px-2 sm:px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-[10px] sm:text-xs font-semibold select-none flex items-center gap-1">
+                  <span className="px-2 sm:px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 dark:bg-emerald-500/10 dark:border-emerald-500/20 dark:text-emerald-400 text-[10px] sm:text-xs font-semibold select-none flex items-center gap-1">
                     <CheckCircle className="h-3 sm:h-3.5 w-3 sm:w-3.5" /> Solved
                   </span>
                 ) : (
@@ -198,14 +198,14 @@ export default function ProblemModal() {
                   onClick={() => toggleBookmarkMutation.mutate(!problem.bookmarked)}
                   className={`p-1.5 sm:p-2 rounded-xl border transition-all cursor-pointer ${
                     problem.bookmarked
-                      ? 'border-yellow-500/40 text-yellow-500 bg-yellow-500/10 shadow-sm'
+                      ? 'border-amber-200 text-amber-700 bg-amber-50 dark:border-yellow-500/40 dark:text-yellow-400 dark:bg-yellow-500/10 shadow-sm'
                       : 'border-border text-muted-foreground hover:text-foreground hover:bg-muted'
                   }`}
                   title={problem.bookmarked ? 'Remove bookmark' : 'Star/Bookmark problem'}
                 >
                   <Star 
                     fill={problem.bookmarked ? "currentColor" : "none"} 
-                    className={`h-4 sm:h-5 w-4 sm:w-5 ${problem.bookmarked ? 'text-yellow-500' : ''}`} 
+                    className={`h-4 sm:h-5 w-4 sm:w-5 ${problem.bookmarked ? 'text-amber-600 dark:text-yellow-400' : ''}`} 
                   />
                 </button>
               )}
@@ -250,7 +250,7 @@ export default function ProblemModal() {
                     disabled={toggleSolvedMutation.isPending}
                     className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl border text-sm font-bold transition-all cursor-pointer ${
                       problem.solved
-                        ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20'
+                        ? 'border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-400 dark:hover:bg-emerald-500/20'
                         : 'border-border bg-card text-foreground hover:bg-muted/80'
                     }`}
                     title={problem.solved ? 'Click to mark as unsolved' : 'Click to verify & mark as solved'}
@@ -262,7 +262,7 @@ export default function ProblemModal() {
                       </>
                     ) : problem.solved ? (
                       <>
-                        <CheckCircle className="h-4 w-4 text-emerald-500" />
+                        <CheckCircle className="h-4 w-4 text-emerald-600 dark:text-emerald-500" />
                         <span>Solved ✓</span>
                       </>
                     ) : (
@@ -277,7 +277,7 @@ export default function ProblemModal() {
                     href={problem.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl border border-primary bg-primary text-black text-sm font-bold hover:bg-primary/90 transition-all shadow-lg shadow-primary/10 cursor-pointer"
+                    className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl border border-primary bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 transition-all shadow-lg shadow-primary/10 cursor-pointer"
                   >
                     <span>Solve on LeetCode</span>
                     <ExternalLink className="h-4 w-4" />

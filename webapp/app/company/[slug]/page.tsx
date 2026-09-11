@@ -185,22 +185,22 @@ export default function CompanyPage() {
         <button
           id="tour-company-continue"
           onClick={handleContinueLearning}
-          className="flex items-center justify-center gap-2 px-5 py-2.5 sm:py-3 border border-primary bg-primary text-black font-bold text-sm rounded-xl hover:bg-primary/95 transition-all shadow-xl shadow-primary/5 cursor-pointer w-full sm:w-auto shrink-0"
+          className="flex items-center justify-center gap-2 px-5 py-2.5 sm:py-3 border border-primary bg-primary text-primary-foreground font-bold text-sm rounded-xl hover:bg-primary/95 transition-all shadow-xl shadow-primary/10 cursor-pointer w-full sm:w-auto shrink-0"
         >
-          <Play className="h-4.5 w-4.5 fill-black" />
+          <Play className="h-4.5 w-4.5 fill-current" />
           <span>Continue Learning</span>
         </button>
       </div>
 
       {/* Embedded Sticky Progress Bar */}
-      <div className="w-full bg-muted/60 border border-border p-3.5 sm:p-4 rounded-2xl flex items-center gap-3 sm:gap-4 flex-wrap sm:flex-nowrap">
-        <div className="flex-grow w-full bg-muted/80 h-3 rounded-full overflow-hidden border border-border/50">
+      <div className="w-full bg-card border border-border/80 p-3.5 sm:p-4 rounded-2xl flex items-center gap-3 sm:gap-4 flex-wrap sm:flex-nowrap shadow-sm">
+        <div className="flex-grow w-full bg-muted/60 dark:bg-muted/80 h-3 rounded-full overflow-hidden border border-border/50">
           <div
-            className="bg-gradient-to-r from-primary to-amber-400 h-full rounded-full transition-all duration-700"
+            className="bg-gradient-to-r from-primary to-amber-500 h-full rounded-full transition-all duration-700"
             style={{ width: `${stats.completionPercentage}%` }}
           />
         </div>
-        <div className="flex-shrink-0 text-xs font-mono font-bold text-muted-foreground">
+        <div className="flex-shrink-0 text-xs font-mono font-bold text-foreground/80 dark:text-muted-foreground">
           {stats.solvedProblems} / {stats.totalProblems} ({stats.completionPercentage.toFixed(0)}%)
         </div>
       </div>
@@ -226,8 +226,8 @@ export default function CompanyPage() {
                 onClick={() => setRecencyFilter(tab.id)}
                 className={`flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 text-xs font-semibold rounded-lg border transition-all cursor-pointer shrink-0 whitespace-nowrap ${
                   isActive
-                    ? 'text-primary border-primary/50 bg-card shadow-sm font-bold'
-                    : 'text-muted-foreground border-transparent hover:text-foreground hover:bg-muted/35'
+                    ? 'bg-primary text-primary-foreground shadow-sm font-bold border-primary'
+                    : 'text-muted-foreground border-transparent hover:text-foreground hover:bg-muted/50'
                 }`}
               >
                 <TabIcon className="h-3.5 w-3.5" />
@@ -256,7 +256,7 @@ export default function CompanyPage() {
                   onClick={() => setStatusFilter(f.id)}
                   className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
                     active
-                      ? 'bg-card border border-primary/50 text-primary shadow-sm'
+                      ? 'bg-primary text-primary-foreground shadow-sm border border-primary'
                       : 'border border-transparent text-muted-foreground hover:text-foreground'
                   }`}
                 >
@@ -283,7 +283,7 @@ export default function CompanyPage() {
                   onClick={() => setDifficultyFilter(d.id)}
                   className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
                     active
-                      ? 'bg-card border border-primary/50 text-primary shadow-sm'
+                      ? 'bg-primary text-primary-foreground shadow-sm border border-primary'
                       : 'border border-transparent text-muted-foreground hover:text-foreground'
                   }`}
                 >
@@ -335,9 +335,9 @@ export default function CompanyPage() {
                         {toggleSolvedMutation.isPending && (toggleSolvedMutation.variables as any)?.id === prob.id ? (
                           <div className="h-4 w-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
                         ) : prob.solved ? (
-                          <CheckCircle className="h-4.5 w-4.5 text-emerald-500 group-hover/status:scale-110 transition-transform" />
+                          <CheckCircle className="h-4.5 w-4.5 text-emerald-600 dark:text-emerald-500 group-hover/status:scale-110 transition-transform" />
                         ) : (
-                          <Circle className="h-4.5 w-4.5 text-muted-foreground/40 group-hover/status:text-emerald-500 group-hover/status:scale-110 transition-all" />
+                          <Circle className="h-4.5 w-4.5 text-muted-foreground/40 group-hover/status:text-emerald-600 dark:group-hover/status:text-emerald-500 group-hover/status:scale-110 transition-all" />
                         )}
                       </button>
                     </td>

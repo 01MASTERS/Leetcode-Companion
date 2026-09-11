@@ -66,13 +66,13 @@ export default function GuestGateModal() {
               </span>
             </div>
             <div className="flex items-start gap-2.5">
-              <Bookmark className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+              <Bookmark className="h-4 w-4 text-amber-600 dark:text-amber-500 shrink-0 mt-0.5" />
               <span>
                 <strong className="text-foreground">Personal Notes & Bookmarks:</strong> Write custom takeaways and review list per problem.
               </span>
             </div>
             <div className="flex items-start gap-2.5">
-              <Shield className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
+              <Shield className="h-4 w-4 text-emerald-600 dark:text-emerald-500 shrink-0 mt-0.5" />
               <span>
                 <strong className="text-foreground">LeetCode Profile Link:</strong> Auto-poll and verify accepted submissions in the background.
               </span>

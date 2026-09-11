@@ -87,12 +87,12 @@ export default function FreshnessBadge() {
           {/* Header */}
           <div className="flex items-center justify-between pb-3 border-b border-border/60">
             <div className="flex items-center gap-2">
-              <span className="p-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <span className="p-1 rounded-lg text-emerald-700 bg-emerald-50 border border-emerald-200 dark:text-emerald-400 dark:bg-emerald-500/10 dark:border-emerald-500/20">
                 <CheckCircle2 className="h-3.5 w-3.5" />
               </span>
               <span className="text-xs font-bold text-foreground">Catalog Freshness</span>
             </div>
-            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full text-emerald-700 bg-emerald-50 border border-emerald-200 dark:text-emerald-400 dark:bg-emerald-500/10 dark:border-emerald-500/20">
               Live & Verified
             </span>
           </div>

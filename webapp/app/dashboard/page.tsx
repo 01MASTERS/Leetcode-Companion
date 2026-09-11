@@ -108,7 +108,7 @@ export default function Dashboard() {
             <div className="absolute -top-10 -right-10 w-24 h-24 bg-amber-500/0 group-hover:bg-amber-500/20 rounded-full blur-xl transition-all duration-500 pointer-events-none" />
             <div className="flex justify-between items-start text-muted-foreground">
               <span className="text-xs font-bold uppercase tracking-wider">Overall Solved</span>
-              <Trophy className="h-4.5 w-4.5 text-primary group-hover:scale-110 group-hover:rotate-6 transition-transform duration-300" />
+              <Trophy className="h-4.5 w-4.5 text-amber-600 dark:text-primary group-hover:scale-110 group-hover:rotate-6 transition-transform duration-300" />
             </div>
             <div>
               <span className="text-2xl font-black text-foreground">{stats.overall?.solvedProblems ?? 0}</span>
@@ -121,7 +121,7 @@ export default function Dashboard() {
             <div className="absolute -top-10 -right-10 w-24 h-24 bg-emerald-500/0 group-hover:bg-emerald-500/20 rounded-full blur-xl transition-all duration-500 pointer-events-none" />
             <div className="flex justify-between items-start text-muted-foreground">
               <span className="text-xs font-bold uppercase tracking-wider">Companies Completed</span>
-              <CheckCircle className="h-4.5 w-4.5 text-emerald-500 group-hover:scale-110 group-hover:rotate-6 transition-transform duration-300" />
+              <CheckCircle className="h-4.5 w-4.5 text-emerald-600 dark:text-emerald-500 group-hover:scale-110 group-hover:rotate-6 transition-transform duration-300" />
             </div>
             <div>
               <span className="text-2xl font-black text-foreground">{stats.companies?.completed ?? 0}</span>
@@ -134,7 +134,7 @@ export default function Dashboard() {
             <div className="absolute -top-10 -right-10 w-24 h-24 bg-blue-500/0 group-hover:bg-blue-500/20 rounded-full blur-xl transition-all duration-500 pointer-events-none" />
             <div className="flex justify-between items-start text-muted-foreground">
               <span className="text-xs font-bold uppercase tracking-wider">In Progress Tracks</span>
-              <TrendingUp className="h-4.5 w-4.5 text-blue-500 group-hover:scale-110 group-hover:-rotate-6 transition-transform duration-300" />
+              <TrendingUp className="h-4.5 w-4.5 text-blue-600 dark:text-blue-500 group-hover:scale-110 group-hover:-rotate-6 transition-transform duration-300" />
             </div>
             <div>
               <span className="text-2xl font-black text-foreground">{stats.companies?.started ?? 0}</span>
@@ -147,7 +147,7 @@ export default function Dashboard() {
             <div className="absolute -top-10 -right-10 w-24 h-24 bg-orange-500/0 group-hover:bg-orange-500/20 rounded-full blur-xl transition-all duration-500 pointer-events-none" />
             <div className="flex justify-between items-start text-muted-foreground">
               <span className="text-xs font-bold uppercase tracking-wider">Daily Streak</span>
-              <Flame className="h-4.5 w-4.5 text-orange-500 group-hover:scale-110 group-hover:rotate-12 transition-transform duration-300" />
+              <Flame className="h-4.5 w-4.5 text-orange-600 dark:text-orange-500 group-hover:scale-110 group-hover:rotate-12 transition-transform duration-300" />
             </div>
             <div>
               <span className="text-2xl font-black text-foreground">{stats.streak ?? 0}</span>
@@ -176,7 +176,7 @@ export default function Dashboard() {
                 onClick={() => setDashboardFilter(f.id)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
                   active
-                    ? 'bg-card text-primary shadow-sm border border-primary/50'
+                    ? 'bg-primary text-primary-foreground shadow-sm border border-primary font-bold'
                     : 'border border-transparent text-muted-foreground hover:text-foreground'
                 }`}
               >
@@ -271,9 +271,9 @@ export default function Dashboard() {
                       </h3>
                       <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border select-none transition-transform duration-300 group-hover:scale-105 ${
                         isCompleted
-                          ? 'text-emerald-500 border-emerald-500/30 bg-emerald-500/15'
+                          ? 'text-emerald-700 bg-emerald-50 border-emerald-200 dark:text-emerald-500 dark:border-emerald-500/30 dark:bg-emerald-500/15'
                           : isStarted
-                          ? 'text-blue-400 border-blue-500/30 bg-blue-500/15'
+                          ? 'text-blue-700 bg-blue-50 border-blue-200 dark:text-blue-400 dark:border-blue-500/30 dark:bg-blue-500/15'
                           : 'text-muted-foreground border-border bg-muted/40'
                       }`}>
                         {company.completionPercentage.toFixed(0)}%

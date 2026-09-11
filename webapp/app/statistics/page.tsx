@@ -57,25 +57,25 @@ export default function StatisticsPage() {
       name: 'Easy',
       stats: difficulties.easy,
       color: 'bg-emerald-500',
-      text: 'text-emerald-500',
-      border: 'border-emerald-500/20',
-      bg: 'bg-emerald-500/10',
+      text: 'text-emerald-700 dark:text-emerald-400',
+      border: 'border-emerald-200 dark:border-emerald-500/20',
+      bg: 'bg-emerald-50 dark:bg-emerald-500/10',
     },
     {
       name: 'Medium',
       stats: difficulties.medium,
       color: 'bg-amber-500',
-      text: 'text-amber-500',
-      border: 'border-amber-500/20',
-      bg: 'bg-amber-500/10',
+      text: 'text-amber-700 dark:text-amber-400',
+      border: 'border-amber-200 dark:border-amber-500/20',
+      bg: 'bg-amber-50 dark:bg-amber-500/10',
     },
     {
       name: 'Hard',
       stats: difficulties.hard,
       color: 'bg-rose-500',
-      text: 'text-rose-500',
-      border: 'border-rose-500/20',
-      bg: 'bg-rose-500/10',
+      text: 'text-rose-700 dark:text-rose-400',
+      border: 'border-rose-200 dark:border-rose-500/20',
+      bg: 'bg-rose-50 dark:bg-rose-500/10',
     },
   ];
 
@@ -93,7 +93,7 @@ export default function StatisticsPage() {
           <div className="absolute -top-10 -right-10 w-24 h-24 bg-amber-500/0 group-hover:bg-amber-500/20 rounded-full blur-xl transition-all duration-500 pointer-events-none" />
           <div className="flex justify-between items-start text-muted-foreground relative z-10">
             <span className="text-xs font-bold uppercase tracking-wider">Total Solved</span>
-            <Trophy className="h-5 w-5 text-primary group-hover:scale-110 group-hover:rotate-6 transition-transform duration-300" />
+            <Trophy className="h-5 w-5 text-amber-600 dark:text-primary group-hover:scale-110 group-hover:rotate-6 transition-transform duration-300" />
           </div>
           <div className="mt-2 relative z-10">
             <span className="text-2xl sm:text-3xl font-black text-foreground">{overall.solvedProblems}</span>
@@ -107,7 +107,7 @@ export default function StatisticsPage() {
           <div className="absolute -top-10 -right-10 w-24 h-24 bg-orange-500/0 group-hover:bg-orange-500/20 rounded-full blur-xl transition-all duration-500 pointer-events-none" />
           <div className="flex justify-between items-start text-muted-foreground relative z-10">
             <span className="text-xs font-bold uppercase tracking-wider">Active Streak</span>
-            <Flame className="h-5 w-5 text-orange-500 group-hover:scale-110 group-hover:rotate-12 transition-transform duration-300" />
+            <Flame className="h-5 w-5 text-orange-600 dark:text-orange-500 group-hover:scale-110 group-hover:rotate-12 transition-transform duration-300" />
           </div>
           <div className="mt-2 relative z-10">
             <span className="text-2xl sm:text-3xl font-black text-foreground">{streak}</span>
@@ -121,7 +121,7 @@ export default function StatisticsPage() {
           <div className="absolute -top-10 -right-10 w-24 h-24 bg-emerald-500/0 group-hover:bg-emerald-500/20 rounded-full blur-xl transition-all duration-500 pointer-events-none" />
           <div className="flex justify-between items-start text-muted-foreground relative z-10">
             <span className="text-xs font-bold uppercase tracking-wider">Solved Today</span>
-            <Calendar className="h-5 w-5 text-emerald-500 group-hover:scale-110 group-hover:rotate-6 transition-transform duration-300" />
+            <Calendar className="h-5 w-5 text-emerald-600 dark:text-emerald-500 group-hover:scale-110 group-hover:rotate-6 transition-transform duration-300" />
           </div>
           <div className="mt-2 relative z-10">
             <span className="text-2xl sm:text-3xl font-black text-foreground">{todaySolvedCount}</span>
@@ -135,7 +135,7 @@ export default function StatisticsPage() {
           <div className="absolute -top-10 -right-10 w-24 h-24 bg-blue-500/0 group-hover:bg-blue-500/20 rounded-full blur-xl transition-all duration-500 pointer-events-none" />
           <div className="flex justify-between items-start text-muted-foreground relative z-10">
             <span className="text-xs font-bold uppercase tracking-wider">Companies Solved</span>
-            <CircleDot className="h-5 w-5 text-blue-500 group-hover:scale-110 group-hover:-rotate-6 transition-transform duration-300" />
+            <CircleDot className="h-5 w-5 text-blue-600 dark:text-blue-500 group-hover:scale-110 group-hover:-rotate-6 transition-transform duration-300" />
           </div>
           <div className="mt-2 relative z-10">
             <span className="text-2xl sm:text-3xl font-black text-foreground">{companies.completed}</span>
@@ -233,7 +233,7 @@ export default function StatisticsPage() {
           <div className="flex items-center gap-2">
             <Star fill="currentColor" className="h-5 w-5 text-yellow-500" />
             <h2 className="text-lg font-bold text-foreground">Starred Questions</h2>
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-yellow-500/10 border border-yellow-500/20 text-yellow-500">
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold text-amber-700 bg-amber-50 border border-amber-200 dark:bg-yellow-500/10 dark:border-yellow-500/20 dark:text-yellow-400">
               {stats.bookmarkedCount || 0}
             </span>
           </div>
@@ -255,7 +255,7 @@ export default function StatisticsPage() {
                       {prob.difficulty}
                     </span>
                     {prob.solved && (
-                      <span className="text-[10px] text-emerald-500 font-bold">✓ Solved</span>
+                      <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-bold">✓ Solved</span>
                     )}
                   </div>
                   <span className="text-sm font-bold text-foreground group-hover:text-yellow-500 transition-colors truncate">

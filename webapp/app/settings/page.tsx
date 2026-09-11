@@ -137,7 +137,7 @@ export default function SettingsPage() {
 
       {/* Guest Mode Notice */}
       {status === 'unauthenticated' && (
-        <div className="glass border border-amber-500/25 bg-amber-500/5 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="glass border border-amber-300 bg-amber-50/80 dark:border-amber-500/25 dark:bg-amber-500/5 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
@@ -232,12 +232,12 @@ export default function SettingsPage() {
             </div>
 
             {/* Why Session Cookie Short Note */}
-            <div id="tour-settings-why-note" className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-300/90 leading-relaxed space-y-1">
-              <div className="font-bold text-amber-300 flex items-center gap-1.5">
+            <div id="tour-settings-why-note" className="p-4 bg-amber-50/90 border border-amber-300/80 dark:bg-amber-500/10 dark:border-amber-500/20 rounded-xl text-xs leading-relaxed space-y-2">
+              <div className="font-bold text-amber-900 dark:text-amber-300 flex items-center gap-2">
                 <span>💡 Why use a Session Cookie?</span>
-                <span className="text-[10px] font-normal px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300">100% Exact Sync</span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-200 text-amber-950 border border-amber-300 dark:bg-amber-500/20 dark:border-transparent dark:text-amber-300">100% Exact Sync</span>
               </div>
-              <p className="text-[11px] text-zinc-300">
+              <p className="text-xs text-stone-800 dark:text-zinc-300 leading-relaxed font-medium">
                 Public profile sync can have caching delays and rate limits on recent solves. Adding your session cookie fetches your authenticated submission log instantly and accurately. It is securely encrypted and completely optional.
               </p>
             </div>
@@ -246,7 +246,7 @@ export default function SettingsPage() {
             <button
               type="submit"
               disabled={syncMutation.isPending}
-              className="mt-2 flex items-center justify-center gap-2 py-3 px-4 bg-primary text-black font-bold text-sm rounded-xl hover:bg-primary/95 transition-all cursor-pointer shadow-lg shadow-primary/5"
+              className="mt-2 flex items-center justify-center gap-2 py-3 px-4 bg-primary text-primary-foreground font-bold text-sm rounded-xl hover:bg-primary/95 transition-all cursor-pointer shadow-lg shadow-primary/10"
             >
               {syncMutation.isPending ? (
                 <>
