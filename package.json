@@ -1,0 +1,11 @@
+{
+  "name": "leetcode-companion-root",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix webapp run dev",
+    "build": "npm --prefix webapp run build",
+    "postinstall": "npm --prefix webapp run postinstall",
+    "lint": "npm --prefix webapp run lint",
+    "sync:upstream": "npm --prefix webapp run sync:upstream"
+  }
+}
