@@ -82,6 +82,15 @@ export async function GET(
     // Find first unsolved problem for Continue Learning
     const firstUnsolved = problems.find(p => !p.solved) || null;
 
+    const headers: Record<string, string> = {};
+    if (!userId) {
+      // Guest response has no user progress; cache at Edge CDN for 5 minutes
+      headers['Cache-Control'] = 'public, s-maxage=300, stale-while-revalidate=600';
+    } else {
+      // Authenticated user data contains private solve state and notes
+      headers['Cache-Control'] = 'private, no-cache, no-store, must-revalidate';
+    }
+
     return NextResponse.json({
       id: company.id,
       name: company.name,
@@ -96,7 +105,7 @@ export async function GET(
       },
       firstUnsolved,
       problems,
-    });
+    }, { headers });
   } catch (error: any) {
     console.error('Error fetching company details:', error);
     const details = process.env.NODE_ENV === 'development' ? error.message : undefined;

@@ -24,6 +24,10 @@ export default function CompanyPage() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'solved' | 'unsolved' | 'starred'>('all');
   const [recencyFilter, setRecencyFilter] = useState<RecencyFilter>('all');
 
+  // Pagination state (50 items per page by default for sub-50ms instant rendering)
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number | 'all'>(50);
+
   // Fetch company details
   const { data: company, isLoading, error } = useQuery<CompanyDetail>({
     queryKey: ['company', slug],
@@ -33,6 +37,11 @@ export default function CompanyPage() {
       return res.json();
     },
   });
+
+  // Reset page whenever search, filters, or page size change
+  React.useEffect(() => {
+    setPage(1);
+  }, [globalSearch, difficultyFilter, statusFilter, recencyFilter, pageSize]);
 
   // Reset global search when entering/leaving page
   React.useEffect(() => {
@@ -68,6 +77,16 @@ export default function CompanyPage() {
       return matchesSearch && matchesDifficulty && matchesStatus && matchesRecency;
     });
   }, [company, globalSearch, difficultyFilter, statusFilter, recencyFilter]);
+
+  // Paginated problem slice for sub-50ms DOM rendering
+  const totalFiltered = filteredProblems.length;
+  const totalPages = pageSize === 'all' ? 1 : Math.max(1, Math.ceil(totalFiltered / (pageSize as number)));
+  const paginatedProblems = useMemo(() => {
+    if (pageSize === 'all') return filteredProblems;
+    const size = pageSize as number;
+    const start = (page - 1) * size;
+    return filteredProblems.slice(start, start + size);
+  }, [filteredProblems, page, pageSize]);
 
   const toggleSolvedMutation = useMutation({
     mutationFn: async ({ id, solved }: { id: number; solved: boolean }) => {
@@ -310,8 +329,8 @@ export default function CompanyPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border/60">
-              {filteredProblems.length > 0 ? (
-                filteredProblems.map((prob) => (
+              {paginatedProblems.length > 0 ? (
+                paginatedProblems.map((prob) => (
                   <tr
                     key={prob.id}
                     className={`hover:bg-muted/30 transition-colors group ${
@@ -415,6 +434,79 @@ export default function CompanyPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Bar */}
+        {totalFiltered > 0 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 bg-muted/20 border-t border-border select-none">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+              <span>
+                Showing{' '}
+                <span className="font-bold text-foreground">
+                  {pageSize === 'all' ? 1 : Math.min(totalFiltered, (page - 1) * (pageSize as number) + 1)}
+                </span>
+                {' '}–{' '}
+                <span className="font-bold text-foreground">
+                  {pageSize === 'all' ? totalFiltered : Math.min(totalFiltered, page * (pageSize as number))}
+                </span>
+                {' '}of <span className="font-bold text-foreground">{totalFiltered}</span> questions
+              </span>
+
+              {/* Page Size Selector */}
+              <div className="hidden sm:flex items-center gap-1.5 ml-2 pl-3 border-l border-border">
+                <span className="text-[11px]">Show:</span>
+                {([50, 100, 200, 'all'] as const).map((sz) => (
+                  <button
+                    key={sz}
+                    onClick={() => {
+                      setPageSize(sz);
+                      setPage(1);
+                    }}
+                    className={`px-2 py-0.5 text-[11px] rounded-md font-bold transition-all cursor-pointer ${
+                      pageSize === sz
+                        ? 'bg-primary text-primary-foreground shadow-xs'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                    }`}
+                  >
+                    {sz === 'all' ? 'All' : sz}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Prev / Next Controls */}
+            {pageSize !== 'all' && totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <button
+                  disabled={page <= 1}
+                  onClick={() => {
+                    setPage((p) => Math.max(1, p - 1));
+                    const tableElem = document.getElementById('tour-company-table');
+                    if (tableElem) tableElem.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }}
+                  className="px-3 py-1.5 text-xs font-bold border border-border rounded-xl bg-card text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
+                >
+                  Previous
+                </button>
+
+                <span className="text-xs font-semibold text-muted-foreground px-1">
+                  Page <span className="font-bold text-foreground">{page}</span> of {totalPages}
+                </span>
+
+                <button
+                  disabled={page >= totalPages}
+                  onClick={() => {
+                    setPage((p) => Math.min(totalPages, p + 1));
+                    const tableElem = document.getElementById('tour-company-table');
+                    if (tableElem) tableElem.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }}
+                  className="px-3 py-1.5 text-xs font-bold border border-border rounded-xl bg-card text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
+                >
+                  Next
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

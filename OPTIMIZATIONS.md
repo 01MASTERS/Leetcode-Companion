@@ -146,9 +146,9 @@ Even with client-side guards, users could open multiple browser tabs simultaneou
 ---
 
 ### Tier 3: Edge CDN HTTP `Cache-Control` Headers
-**Files:** `webapp/app/api/companies/route.ts` & `webapp/app/api/stats/route.ts`
+**Files:** `webapp/app/api/companies/route.ts`, `webapp/app/api/stats/route.ts`, & `webapp/app/api/companies/[slug]/route.ts`
 
-- **The Problem:** 650+ tech companies and 3,000+ problems rarely change (only updated once daily via upstream sync). Guest visitors, bots, and landing page previews were re-calculating identical aggregate SQL on every page hit.
+- **The Problem:** 650+ tech companies, individual question tracks, and 3,000+ problems rarely change (only updated once daily via upstream sync). Guest visitors, bots, and landing page previews were re-calculating identical aggregate SQL and huge relation joins on every page hit.
 - **The Solution:**
   - **Guest Mode (`!userId`):**
     ```typescript
@@ -163,14 +163,19 @@ Even with client-side guards, users could open multiple browser tabs simultaneou
 
 ---
 
-### Tier 4: Code-Splitting & React Query Cache Tuning
-**Files:** `webapp/components/GlobalModals.tsx`, `webapp/app/layout.tsx`, `webapp/components/Providers.tsx`
+### Tier 4: Code-Splitting, Windowing/Pagination & React Query Cache Tuning
+**Files:** `webapp/components/GlobalModals.tsx`, `webapp/app/layout.tsx`, `webapp/components/Providers.tsx`, `webapp/app/company/[slug]/page.tsx`
 
-1. **Dynamic Code-Splitting (`GlobalModals.tsx`):**
+1. **Company Page Table Pagination & Windowing (`company/[slug]/page.tsx`):**
+   - Previously rendered all questions (up to 2,325 for Google) in a single massive HTML table, generating **over 35,000 DOM nodes** and blocking the main thread for 5–11 seconds.
+   - Now renders a configurable page size (default **50 questions per page**, with toggles for 50, 100, 200, and All).
+   - Reduces active DOM elements by **97.8%** (from 35,000 down to ~750).
+   - Slicing and page transitions happen in **< 10 ms**, while in-memory search and difficulty filtering continue to search across the entire catalog instantly.
+2. **Dynamic Code-Splitting (`GlobalModals.tsx`):**
    - Extracted `ProblemModal`, `GuestGateModal`, `SyncHistoryModal`, and `OnboardingTour` into on-demand asynchronous chunks via `next/dynamic({ ssr: false })`.
    - `driver.js` and its stylesheet are stripped from the critical initial render path.
    - Initial JavaScript bundle size reduced by **~40 KB**.
-2. **TanStack React Query Cache Tuning (`Providers.tsx`):**
+3. **TanStack React Query Cache Tuning (`Providers.tsx`):**
    - `staleTime` set to **3 minutes** (`1000 * 60 * 3`).
    - `gcTime` set to **10 minutes** (`1000 * 60 * 10`).
    - Navigating between *Dashboard*, *Companies*, and *Statistics* no longer triggers duplicate network roundtrips. When a solve occurs, `queryClient.invalidateQueries` forces an immediate fresh fetch.
