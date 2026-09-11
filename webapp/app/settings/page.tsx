@@ -188,7 +188,7 @@ export default function SettingsPage() {
           </div>
 
           <form onSubmit={handleSyncSubmit} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5">
+            <div id="tour-settings-username" className="flex flex-col gap-1.5">
               <div className="flex justify-between items-baseline">
                 <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                   LeetCode Username
@@ -209,7 +209,7 @@ export default function SettingsPage() {
             </div>
 
             {/* Authenticated Cookie Input */}
-            <div className="flex flex-col gap-1.5">
+            <div id="tour-settings-cookie" className="flex flex-col gap-1.5">
               <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                 LeetCode Session Cookie (Optional)
               </label>
@@ -228,6 +228,17 @@ export default function SettingsPage() {
               />
               <p className="text-[10px] text-muted-foreground leading-relaxed leading-normal">
                 How to get it: Log in to LeetCode &rarr; Open DevTools (F12) &rarr; Application/Storage &rarr; Cookies &rarr; Copy the value of <strong>LEETCODE_SESSION</strong>.
+              </p>
+            </div>
+
+            {/* Why Session Cookie Short Note */}
+            <div id="tour-settings-why-note" className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-300/90 leading-relaxed space-y-1">
+              <div className="font-bold text-amber-300 flex items-center gap-1.5">
+                <span>💡 Why use a Session Cookie?</span>
+                <span className="text-[10px] font-normal px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300">100% Exact Sync</span>
+              </div>
+              <p className="text-[11px] text-zinc-300">
+                Public profile sync can have caching delays and rate limits on recent solves. Adding your session cookie fetches your authenticated submission log instantly and accurately. It is securely encrypted and completely optional.
               </p>
             </div>
 

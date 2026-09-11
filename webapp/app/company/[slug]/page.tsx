@@ -183,6 +183,7 @@ export default function CompanyPage() {
 
         {/* Continue Learning Button */}
         <button
+          id="tour-company-continue"
           onClick={handleContinueLearning}
           className="flex items-center justify-center gap-2 px-5 py-3 border border-primary bg-primary text-black font-bold text-sm rounded-xl hover:bg-primary/95 transition-all shadow-xl shadow-primary/5 cursor-pointer w-full md:w-auto"
         >
@@ -205,7 +206,7 @@ export default function CompanyPage() {
       </div>
 
       {/* Recency Categories & Filters Panel */}
-      <div className="flex flex-col gap-4">
+      <div id="tour-company-recency" className="flex flex-col gap-4">
         {/* Recency Tabs */}
         <div className="flex items-center gap-1.5 border-b border-border pb-3 flex-wrap">
           {(
@@ -295,7 +296,7 @@ export default function CompanyPage() {
       </div>
 
       {/* Questions List */}
-      <div className="border border-border bg-card rounded-2xl overflow-hidden shadow-sm">
+      <div id="tour-company-table" className="border border-border bg-card rounded-2xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
