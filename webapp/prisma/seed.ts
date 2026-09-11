@@ -235,26 +235,11 @@ async function main() {
   // Write to DB
   console.log('Writing to database...');
 
-  // Clean current tables in case of re-run
-  await prisma.companyProblem.deleteMany();
-  await prisma.activityLog.deleteMany();
-  await prisma.problem.deleteMany();
-  await prisma.company.deleteMany();
-  await prisma.userStats.deleteMany();
-  await prisma.syncConfig.deleteMany();
-
-  // Create single user settings and sync settings
-  await prisma.userStats.create({
-    data: { id: 1, streak: 0, lastSolvedDate: null },
-  });
-  await prisma.syncConfig.create({
-    data: { id: 1, leetcodeUser: '', lastSyncedAt: null },
-  });
-
-  // 1. Create Companies in bulk
+  // 1. Upsert / Insert Companies in bulk
   console.log('Inserting companies...');
   await prisma.company.createMany({
     data: companiesToCreate,
+    skipDuplicates: true,
   });
 
   const dbCompanies = await prisma.company.findMany();
@@ -263,7 +248,7 @@ async function main() {
     slugToIdMap.set(c.slug, c.id);
   }
 
-  // 2. Create Problems in batches
+  // 2. Insert Problems in batches
   console.log('Inserting problems...');
   const problemsArray = Array.from(problemsMap.values());
   const batchSize = 1000;
@@ -271,10 +256,11 @@ async function main() {
     const batch = problemsArray.slice(i, i + batchSize);
     await prisma.problem.createMany({
       data: batch,
+      skipDuplicates: true,
     });
   }
 
-  // 3. Create CompanyProblems in batches
+  // 3. Insert CompanyProblem relations in batches
   console.log('Inserting company problem relations...');
   const relationsArray = Array.from(companyProblemsMap.values()).map(rel => ({
     companyId: slugToIdMap.get(rel.companySlug)!,
@@ -291,6 +277,21 @@ async function main() {
     const batch = relationsArray.slice(i, i + batchSize);
     await prisma.companyProblem.createMany({
       data: batch,
+      skipDuplicates: true,
+    });
+  }
+
+  // 4. Initialize SyncMetadata if empty
+  const existingMeta = await prisma.syncMetadata.findFirst();
+  if (!existingMeta) {
+    await prisma.syncMetadata.create({
+      data: {
+        commitSha: 'd0ac44f',
+        syncedAt: new Date(),
+        totalCompanies: companiesToCreate.length,
+        totalProblems: problemsArray.length,
+        summary: 'Initial cloud seed from upstream repository dataset',
+      },
     });
   }
 

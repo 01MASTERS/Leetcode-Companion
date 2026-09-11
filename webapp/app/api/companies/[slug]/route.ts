@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getCurrentUserId } from '@/lib/auth-helper';
 
 export async function GET(
   request: Request,
@@ -7,6 +8,7 @@ export async function GET(
 ) {
   try {
     const slug = (await params).slug;
+    const userId = await getCurrentUserId();
 
     const company = await prisma.company.findUnique({
       where: { slug },
@@ -25,9 +27,14 @@ export async function GET(
                 title: true,
                 url: true,
                 difficulty: true,
-                solved: true,
-                notes: true,
-                bookmarked: true,
+                userProgress: {
+                  where: { userId },
+                  select: {
+                    solved: true,
+                    notes: true,
+                    bookmarked: true,
+                  },
+                },
               },
             },
           },
@@ -40,23 +47,26 @@ export async function GET(
     }
 
     // Format problems
-    const problems = company.problems.map(cp => ({
-      id: cp.problem.id,
-      title: cp.problem.title,
-      url: cp.problem.url,
-      difficulty: cp.problem.difficulty,
-      solved: cp.problem.solved,
-      notes: cp.problem.notes || '',
-      bookmarked: cp.problem.bookmarked,
-      frequency: cp.frequency,
-      categories: {
-        thirtyDays: cp.inThirtyDays,
-        threeMonths: cp.inThreeMonths,
-        sixMonths: cp.inSixMonths,
-        moreThanSixMonths: cp.inMoreThanSixMonths,
-        all: cp.inAll,
-      },
-    }));
+    const problems = company.problems.map(cp => {
+      const progress = cp.problem.userProgress?.[0];
+      return {
+        id: cp.problem.id,
+        title: cp.problem.title,
+        url: cp.problem.url,
+        difficulty: cp.problem.difficulty,
+        solved: progress?.solved || false,
+        notes: progress?.notes || '',
+        bookmarked: progress?.bookmarked || false,
+        frequency: cp.frequency,
+        categories: {
+          thirtyDays: cp.inThirtyDays,
+          threeMonths: cp.inThreeMonths,
+          sixMonths: cp.inSixMonths,
+          moreThanSixMonths: cp.inMoreThanSixMonths,
+          all: cp.inAll,
+        },
+      };
+    });
 
     // Sort by frequency descending
     problems.sort((a, b) => b.frequency - a.frequency);

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getCurrentUserId } from '@/lib/auth-helper';
 
 // Helper to fetch exact solved question slugs using the session cookie
 async function fetchExactSolvedProblems(cookie: string): Promise<string[]> {
@@ -123,11 +124,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Username is required' }, { status: 400 });
     }
 
-    // Get current sync configuration
-    let config = await prisma.syncConfig.findUnique({ where: { id: 1 } });
+    const userId = await getCurrentUserId();
+
+    // Get or create current sync configuration for user
+    let config = await prisma.userSyncConfig.findUnique({ where: { userId } });
     if (!config) {
-      config = await prisma.syncConfig.create({
-        data: { id: 1, leetcodeUser: '', leetcodeSession: '', lastSubmissionTimestamp: 0, isDemoMode: false },
+      config = await prisma.userSyncConfig.create({
+        data: { userId, leetcodeUser: '', leetcodeSession: '', lastSubmissionTimestamp: 0, isDemoMode: false },
       });
     }
 
@@ -149,8 +152,6 @@ export async function POST(request: Request) {
           cachedRecentSubs = await fetchRecentSubmissions(username, 50);
           if (cachedRecentSubs.length > 0) {
             const lowestFetchedTimestamp = parseInt(cachedRecentSubs[cachedRecentSubs.length - 1].timestamp);
-            // If the oldest submission in the fetched batch is newer than our last processed submission,
-            // it means there is a gap where submissions were missed! We must trigger full sync.
             if (config.lastSubmissionTimestamp > 0 && lowestFetchedTimestamp > config.lastSubmissionTimestamp) {
               console.log('Recovery Triggered: Recent submissions window exceeded. Performing Full Sync.');
               targetAction = 'full';
@@ -168,13 +169,15 @@ export async function POST(request: Request) {
     if (targetAction === 'full') {
       console.log(`Starting Full Sync for user: ${username}`);
 
-      // Clear existing solved states to start a fresh sync
+      // Clear existing solved states for THIS user to start a fresh sync
       await prisma.$transaction([
-        prisma.problem.updateMany({
-          where: { OR: [{ solved: true }, { solvedViaDemo: true }] },
-          data: { solved: false, solvedAt: null, solvedViaDemo: false },
+        prisma.userProblemProgress.updateMany({
+          where: { userId, solved: true },
+          data: { solved: false, solvedAt: null },
         }),
-        prisma.activityLog.deleteMany(),
+        prisma.activityLog.deleteMany({
+          where: { userId },
+        }),
       ]);
 
       let solvedSlugs: Set<string> = new Set();
@@ -183,7 +186,7 @@ export async function POST(request: Request) {
       let cookieValid = false;
       const recentSubmissionMap = new Map<string, Date>();
 
-      // Determine session cookie to use (from request or fallback to stored config if username matches)
+      // Determine session cookie to use
       const activeCookie = leetcodeSession !== undefined 
         ? leetcodeSession 
         : (config.leetcodeUser === username ? config.leetcodeSession : '');
@@ -230,7 +233,6 @@ export async function POST(request: Request) {
             console.log(`Found exactly ${solvedSlugs.size} solved question slugs using session cookie.`);
           } catch (cookieError: any) {
             console.error('Authenticated cookie fetch failed, falling back to public stats sync:', cookieError.message);
-            // If cookie sync fails, proceed to public stats count-filler logic below
           }
         }
 
@@ -238,139 +240,95 @@ export async function POST(request: Request) {
         if (!cookieValid) {
           console.log('Performing Public Stats Sync (Counts-Filler mode)...');
           try {
-            const counts = await fetchLeetCodeStats(username);
-            console.log(`LeetCode profile counts: Easy: ${counts.easy}, Medium: ${counts.medium}, Hard: ${counts.hard}`);
+            const { easy, medium, hard } = await fetchLeetCodeStats(username);
+            console.log(`User stats on LeetCode: Easy: ${easy}, Medium: ${medium}, Hard: ${hard}`);
 
-            // Fetch difficulties of already matched recent problems
-            const actualProblems = await prisma.problem.findMany({
-              where: { titleSlug: { in: Array.from(recentSubmissionMap.keys()) } },
-              select: { difficulty: true },
-            });
+            // Count how many we already have from recent submissions
+            let currentEasy = 0;
+            let currentMedium = 0;
+            let currentHard = 0;
 
-            let easyRemaining = counts.easy;
-            let mediumRemaining = counts.medium;
-            let hardRemaining = counts.hard;
-
-            for (const p of actualProblems) {
-              if (p.difficulty === 'Easy') easyRemaining = Math.max(0, easyRemaining - 1);
-              if (p.difficulty === 'Medium') mediumRemaining = Math.max(0, mediumRemaining - 1);
-              if (p.difficulty === 'Hard') hardRemaining = Math.max(0, hardRemaining - 1);
+            if (solvedSlugs.size > 0) {
+              const currentProblems = await prisma.problem.findMany({
+                where: { titleSlug: { in: Array.from(solvedSlugs) } },
+                select: { difficulty: true },
+              });
+              for (const p of currentProblems) {
+                if (p.difficulty === 'Easy') currentEasy++;
+                if (p.difficulty === 'Medium') currentMedium++;
+                if (p.difficulty === 'Hard') currentHard++;
+              }
             }
 
-            // Fill difficulties remaining using popular problems from repository
-            if (easyRemaining > 0) {
-              const fillEasy = await prisma.problem.findMany({
+            const neededEasy = Math.max(0, easy - currentEasy);
+            const neededMedium = Math.max(0, medium - currentMedium);
+            const neededHard = Math.max(0, hard - currentHard);
+
+            console.log(`Needed filler problems: Easy: ${neededEasy}, Medium: ${neededMedium}, Hard: ${neededHard}`);
+
+            const fetchFillerSlugs = async (diff: string, count: number) => {
+              if (count <= 0) return [];
+              const rawProblems = await prisma.problem.findMany({
                 where: {
-                  difficulty: 'Easy',
-                  NOT: { titleSlug: { in: Array.from(solvedSlugs) } },
+                  difficulty: diff,
+                  titleSlug: { notIn: Array.from(solvedSlugs) },
                 },
                 orderBy: { id: 'asc' },
-                take: easyRemaining,
+                take: count,
                 select: { titleSlug: true },
               });
-              fillEasy.forEach(p => solvedSlugs.add(p.titleSlug));
-            }
+              return rawProblems.map(p => p.titleSlug);
+            };
 
-            if (mediumRemaining > 0) {
-              const fillMedium = await prisma.problem.findMany({
-                where: {
-                  difficulty: 'Medium',
-                  NOT: { titleSlug: { in: Array.from(solvedSlugs) } },
-                },
-                orderBy: { id: 'asc' },
-                take: mediumRemaining,
-                select: { titleSlug: true },
-              });
-              fillMedium.forEach(p => solvedSlugs.add(p.titleSlug));
-            }
+            const [fillEasy, fillMed, fillHard] = await Promise.all([
+              fetchFillerSlugs('Easy', neededEasy),
+              fetchFillerSlugs('Medium', neededMedium),
+              fetchFillerSlugs('Hard', neededHard),
+            ]);
 
-            if (hardRemaining > 0) {
-              const fillHard = await prisma.problem.findMany({
-                where: {
-                  difficulty: 'Hard',
-                  NOT: { titleSlug: { in: Array.from(solvedSlugs) } },
-                },
-                orderBy: { id: 'asc' },
-                take: hardRemaining,
-                select: { titleSlug: true },
-              });
-              fillHard.forEach(p => solvedSlugs.add(p.titleSlug));
-            }
-          } catch (apiError: any) {
-            console.error('LeetCode API failed, falling back to simulated demo solved states:', apiError.message);
-            isDemoMode = true;
-            const popularProblems = await prisma.problem.findMany({
-              take: 75,
-              orderBy: { id: 'desc' },
-            });
-            solvedSlugs = new Set(popularProblems.map(p => p.titleSlug));
-            latestTimestamp = Math.floor(Date.now() / 1000);
+            [...fillEasy, ...fillMed, ...fillHard].forEach(slug => solvedSlugs.add(slug));
+            console.log(`Total filled solved problems set: ${solvedSlugs.size}`);
+          } catch (statsErr: any) {
+            console.warn('Could not fetch public solved stats:', statsErr.message);
           }
         }
       }
 
-      const slugsArray = Array.from(solvedSlugs);
-      
-      // Match solved list against repo
+      // Find matched problems in our database
       const matchedProblems = await prisma.problem.findMany({
-        where: {
-          titleSlug: { in: slugsArray },
-        },
+        where: { titleSlug: { in: Array.from(solvedSlugs) } },
+        select: { id: true, titleSlug: true },
       });
 
-      console.log(`Matched ${matchedProblems.length} solved problems with the repository.`);
+      console.log(`Matched ${matchedProblems.length} solved problems with database catalog.`);
 
+      // Update user progress in a transaction
       if (matchedProblems.length > 0) {
         await prisma.$transaction(async (tx) => {
-          if (isDemoMode) {
-            for (let i = 0; i < matchedProblems.length; i++) {
-              const p = matchedProblems[i];
-              const solvedAt = i < 10 ? new Date(Date.now() - i * 3600 * 1000 * 4) : null;
-              await tx.problem.update({
-                where: { id: p.id },
-                data: {
-                  solved: true,
-                  solvedAt,
-                  solvedViaDemo: true,
-                },
-              });
-            }
-          } else {
-            // Update problems with known recent submission timestamps
-            const recentProblems = matchedProblems.filter(p => recentSubmissionMap.has(p.titleSlug));
-            for (const p of recentProblems) {
-              const solvedAt = recentSubmissionMap.get(p.titleSlug);
-              await tx.problem.update({
-                where: { id: p.id },
-                data: {
-                  solved: true,
-                  solvedAt,
-                  solvedViaDemo: false,
-                },
-              });
-            }
-
-            // Older / filler solved problems (no recent timestamp known)
-            const otherProblemIds = matchedProblems
-              .filter(p => !recentSubmissionMap.has(p.titleSlug))
-              .map(p => p.id);
-
-            if (otherProblemIds.length > 0) {
-              await tx.problem.updateMany({
-                where: { id: { in: otherProblemIds } },
-                data: {
-                  solved: true,
-                  solvedAt: null,
-                  solvedViaDemo: false,
-                },
-              });
-            }
+          for (const p of matchedProblems) {
+            const solvedAt = recentSubmissionMap.get(p.titleSlug) || (latestTimestamp > 0 ? new Date(latestTimestamp * 1000) : new Date());
+            await tx.userProblemProgress.upsert({
+              where: { userId_problemId: { userId, problemId: p.id } },
+              create: {
+                userId,
+                problemId: p.id,
+                solved: true,
+                solvedAt,
+                notes: '',
+                bookmarked: false,
+              },
+              update: {
+                solved: true,
+                solvedAt,
+              },
+            });
           }
 
           // Create activity logs
           const activities = matchedProblems.map(p => {
             const solvedDate = recentSubmissionMap.get(p.titleSlug);
             return {
+              userId,
               problemId: p.id,
               action: 'SOLVED',
               timestamp: solvedDate || new Date(),
@@ -386,17 +344,25 @@ export async function POST(request: Request) {
             : new Date().toLocaleDateString('sv-SE');
 
           await tx.userStats.upsert({
-            where: { id: 1 },
-            create: { id: 1, streak: 1, lastSolvedDate: lastSolvedDateStr },
+            where: { userId },
+            create: { userId, streak: 1, lastSolvedDate: lastSolvedDateStr },
             update: { streak: 1, lastSolvedDate: lastSolvedDateStr },
           });
         });
       }
 
       // Update sync config in DB
-      await prisma.syncConfig.update({
-        where: { id: 1 },
-        data: {
+      await prisma.userSyncConfig.upsert({
+        where: { userId },
+        create: {
+          userId,
+          leetcodeUser: username,
+          leetcodeSession: cookieValid ? (activeCookie || '') : '',
+          lastSyncedAt: new Date(),
+          lastSubmissionTimestamp: latestTimestamp,
+          isDemoMode,
+        },
+        update: {
           leetcodeUser: username,
           leetcodeSession: cookieValid ? (activeCookie || '') : '',
           lastSyncedAt: new Date(),
@@ -444,8 +410,8 @@ export async function POST(request: Request) {
       console.log(`Found ${newSubs.length} new submissions since last sync (last timestamp: ${config.lastSubmissionTimestamp}).`);
 
       if (newSubs.length === 0) {
-        await prisma.syncConfig.update({
-          where: { id: 1 },
+        await prisma.userSyncConfig.update({
+          where: { userId },
           data: { lastSyncedAt: new Date() },
         });
 
@@ -459,7 +425,6 @@ export async function POST(request: Request) {
 
       const newSlugs = newSubs.map(s => s.titleSlug);
       
-      // Match against repo problems without restricting to solved: false
       const matchedNewProblems = await prisma.problem.findMany({
         where: {
           titleSlug: { in: newSlugs },
@@ -479,12 +444,19 @@ export async function POST(request: Request) {
           for (const problem of matchedNewProblems) {
             const sub = newSubs.find(s => s.titleSlug === problem.titleSlug);
             const solvedDate = sub ? new Date(parseInt(sub.timestamp) * 1000) : new Date();
-            await tx.problem.update({
-              where: { id: problem.id },
-              data: {
+            await tx.userProblemProgress.upsert({
+              where: { userId_problemId: { userId, problemId: problem.id } },
+              create: {
+                userId,
+                problemId: problem.id,
                 solved: true,
                 solvedAt: solvedDate,
-                solvedViaDemo: false,
+                notes: '',
+                bookmarked: false,
+              },
+              update: {
+                solved: true,
+                solvedAt: solvedDate,
               },
             });
           }
@@ -493,6 +465,7 @@ export async function POST(request: Request) {
             const sub = newSubs.find(s => s.titleSlug === p.titleSlug);
             const solvedDate = sub ? new Date(parseInt(sub.timestamp) * 1000) : new Date();
             return {
+              userId,
               problemId: p.id,
               action: 'SOLVED',
               timestamp: solvedDate,
@@ -503,7 +476,7 @@ export async function POST(request: Request) {
           });
 
           // Update Streak
-          const stats = await tx.userStats.findUnique({ where: { id: 1 } });
+          const stats = await tx.userStats.findUnique({ where: { userId } });
           const todayStr = new Date().toLocaleDateString('sv-SE');
           if (stats) {
             let newStreak = stats.streak;
@@ -524,9 +497,14 @@ export async function POST(request: Request) {
               }
             }
 
-            await tx.userStats.update({
-              where: { id: 1 },
-              data: {
+            await tx.userStats.upsert({
+              where: { userId },
+              create: {
+                userId,
+                streak: newStreak,
+                lastSolvedDate: todayStr,
+              },
+              update: {
                 streak: newStreak,
                 lastSolvedDate: todayStr,
               },
@@ -535,8 +513,8 @@ export async function POST(request: Request) {
         });
       }
 
-      await prisma.syncConfig.update({
-        where: { id: 1 },
+      await prisma.userSyncConfig.update({
+        where: { userId },
         data: {
           lastSyncedAt: new Date(),
           lastSubmissionTimestamp: latestTimestamp,

@@ -1,11 +1,16 @@
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 generator client {
   provider = "prisma-client-js"
 }
+
+// ==========================================
+// 1. Master Question & Company Catalog
+// ==========================================
 
 model Company {
   id        Int              @id @default(autoincrement())
@@ -19,25 +24,20 @@ model Company {
 }
 
 model Problem {
-  id          Int              @id // LeetCode Problem ID (e.g. 1 for Two Sum)
+  id          Int                   @id // Official LeetCode Problem ID (e.g. 1)
   title       String
   url         String
   difficulty  String
   acceptance  Float
-  titleSlug     String           @unique
-  solved        Boolean          @default(false)
-  solvedAt      DateTime?
-  solvedViaDemo Boolean          @default(false)
-  notes         String?
-  bookmarked    Boolean          @default(false)
-  companies     CompanyProblem[]
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
-  activities    ActivityLog[]
+  titleSlug   String                @unique
+  companies   CompanyProblem[]
+  activities  ActivityLog[]
+  userProgress UserProblemProgress[]
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
 
-  @@index([solved])
   @@index([difficulty])
-  @@index([bookmarked])
+  @@index([titleSlug])
 }
 
 model CompanyProblem {
@@ -59,28 +59,128 @@ model CompanyProblem {
   @@index([frequency])
 }
 
+model SyncMetadata {
+  id                  Int      @id @default(autoincrement())
+  commitSha           String
+  syncedAt            DateTime @default(now())
+  totalCompanies      Int      @default(0)
+  totalProblems       Int      @default(0)
+  summary             String?
+  updatedCompanySlugs String?  // Comma-separated or JSON list of updated company slugs
+}
+
+// ==========================================
+// 2. Multi-Tenant User & Progress Domain
+// ==========================================
+
+model User {
+  id            String                @id @default(cuid())
+  name          String?
+  email         String?               @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  progress      UserProblemProgress[]
+  activities    ActivityLog[]
+  stats         UserStats?
+  syncConfig    UserSyncConfig?
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model UserProblemProgress {
+  id         Int       @id @default(autoincrement())
+  userId     String
+  problemId  Int
+  solved     Boolean   @default(false)
+  solvedAt   DateTime?
+  notes      String?   @db.Text
+  bookmarked Boolean   @default(false)
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, problemId])
+  @@index([userId])
+  @@index([problemId])
+  @@index([userId, solved])
+  @@index([userId, bookmarked])
+}
+
 model UserStats {
-  id             Int     @id @default(1)
+  id             Int     @id @default(autoincrement())
+  userId         String  @unique
   streak         Int     @default(0)
   lastSolvedDate String? // YYYY-MM-DD
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-model ActivityLog {
-  id        Int      @id @default(autoincrement())
-  problemId Int
-  action    String   // 'SOLVED' or 'UNSOLVED'
-  timestamp DateTime @default(now())
-  problem   Problem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
-
-  @@index([problemId])
-  @@index([timestamp])
-}
-
-model SyncConfig {
-  id                      Int       @id @default(1)
+model UserSyncConfig {
+  id                      Int       @id @default(autoincrement())
+  userId                  String    @unique
   leetcodeUser            String    @default("")
   leetcodeSession         String    @default("")
   lastSyncedAt            DateTime?
   lastSubmissionTimestamp Int       @default(0)
   isDemoMode              Boolean   @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ActivityLog {
+  id        Int      @id @default(autoincrement())
+  userId    String?
+  problemId Int
+  action    String   // 'SOLVED' or 'UNSOLVED'
+  timestamp DateTime @default(now())
+
+  problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  user    User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([problemId])
+  @@index([timestamp])
 }

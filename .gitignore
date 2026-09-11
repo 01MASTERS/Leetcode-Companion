@@ -205,6 +205,7 @@ webapp/build/
 webapp/*.tsbuildinfo
 webapp/next-env.d.ts
 webapp/.env*
+!webapp/.env.example
 webapp/*.db
 webapp/*.db-journal
 webapp/*.db-shm

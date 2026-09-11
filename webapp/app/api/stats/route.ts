@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getCurrentUserId } from '@/lib/auth-helper';
 
 export async function GET() {
   try {
     const todayStr = new Date().toLocaleDateString('sv-SE'); // YYYY-MM-DD
     const startOfToday = new Date(todayStr + 'T00:00:00');
+    const userId = await getCurrentUserId();
 
     // Run all independent queries in parallel
     const [
@@ -19,58 +21,69 @@ export async function GET() {
       todaySolvedCount,
       recentActivityProblems,
       userStats,
-      bookmarkedProblemsList,
+      bookmarkedProgressList,
       syncConfig,
       companyStatsRaw,
     ] = await Promise.all([
       prisma.problem.count(),
-      prisma.problem.count({ where: { solved: true } }),
-      prisma.problem.count({ where: { difficulty: 'Easy', solved: true } }),
+      prisma.userProblemProgress.count({ where: { userId, solved: true } }),
+      prisma.userProblemProgress.count({
+        where: { userId, solved: true, problem: { difficulty: 'Easy' } },
+      }),
       prisma.problem.count({ where: { difficulty: 'Easy' } }),
-      prisma.problem.count({ where: { difficulty: 'Medium', solved: true } }),
+      prisma.userProblemProgress.count({
+        where: { userId, solved: true, problem: { difficulty: 'Medium' } },
+      }),
       prisma.problem.count({ where: { difficulty: 'Medium' } }),
-      prisma.problem.count({ where: { difficulty: 'Hard', solved: true } }),
+      prisma.userProblemProgress.count({
+        where: { userId, solved: true, problem: { difficulty: 'Hard' } },
+      }),
       prisma.problem.count({ where: { difficulty: 'Hard' } }),
-      prisma.problem.count({
+      prisma.userProblemProgress.count({
         where: {
+          userId,
           solved: true,
           solvedAt: { gte: startOfToday },
         },
       }),
-      prisma.problem.findMany({
-        where: { solved: true, solvedAt: { not: null } },
+      prisma.userProblemProgress.findMany({
+        where: { userId, solved: true, solvedAt: { not: null } },
         orderBy: [{ solvedAt: 'desc' }, { id: 'desc' }],
         take: 10,
-        select: { id: true, title: true, difficulty: true, solvedAt: true },
+        select: {
+          problem: {
+            select: { id: true, title: true, difficulty: true },
+          },
+          solvedAt: true,
+        },
       }),
-      prisma.userStats.findUnique({ where: { id: 1 } }),
-      prisma.problem.findMany({
-        where: { bookmarked: true },
+      prisma.userStats.findUnique({ where: { userId } }),
+      prisma.userProblemProgress.findMany({
+        where: { userId, bookmarked: true },
         orderBy: { updatedAt: 'desc' },
         select: {
-          id: true,
-          title: true,
-          difficulty: true,
+          problem: {
+            select: { id: true, title: true, difficulty: true, url: true },
+          },
           solved: true,
-          url: true,
           updatedAt: true,
         },
       }),
-      prisma.syncConfig.findUnique({ where: { id: 1 } }),
-      prisma.$queryRaw<Array<{ totalCompanies: bigint; completedCompanies: bigint; startedCompanies: bigint }>>`
+      prisma.userSyncConfig.findUnique({ where: { userId } }),
+      prisma.$queryRawUnsafe<Array<{ totalCompanies: bigint; completedCompanies: bigint; startedCompanies: bigint }>>(`
         SELECT 
-          (SELECT COUNT(*) FROM Company) as totalCompanies,
-          COUNT(CASE WHEN total_cnt > 0 AND solved_cnt = total_cnt THEN 1 END) as completedCompanies,
-          COUNT(CASE WHEN solved_cnt > 0 AND solved_cnt < total_cnt THEN 1 END) as startedCompanies
+          (SELECT COUNT(*) FROM "Company") as "totalCompanies",
+          COUNT(CASE WHEN total_cnt > 0 AND solved_cnt = total_cnt THEN 1 END) as "completedCompanies",
+          COUNT(CASE WHEN solved_cnt > 0 AND solved_cnt < total_cnt THEN 1 END) as "startedCompanies"
         FROM (
-          SELECT cp.companyId,
-                 COUNT(cp.problemId) as total_cnt,
-                 SUM(CASE WHEN p.solved = 1 THEN 1 ELSE 0 END) as solved_cnt
-          FROM CompanyProblem cp
-          JOIN Problem p ON cp.problemId = p.id
-          GROUP BY cp.companyId
-        )
-      `,
+          SELECT cp."companyId",
+                 COUNT(cp."problemId") as total_cnt,
+                 SUM(CASE WHEN upp.solved = TRUE THEN 1 ELSE 0 END) as solved_cnt
+          FROM "CompanyProblem" cp
+          LEFT JOIN "UserProblemProgress" upp ON cp."problemId" = upp."problemId" AND upp."userId" = $1
+          GROUP BY cp."companyId"
+        ) sub
+      `, userId),
     ]);
 
     const remainingProblems = totalProblems - solvedProblems;
@@ -81,55 +94,53 @@ export async function GET() {
     const startedCompanies = Number(companyStatsRaw[0]?.startedCompanies || 0);
 
     const recentActivity = recentActivityProblems.map((p) => ({
-      id: p.id,
-      problemId: p.id,
-      problemTitle: p.title,
-      difficulty: p.difficulty,
+      id: p.problem.id,
+      problemId: p.problem.id,
+      problemTitle: p.problem.title,
+      difficulty: p.problem.difficulty,
       timestamp: p.solvedAt,
     }));
 
     const streak = userStats?.streak || 0;
 
-    const bookmarkedProblems = bookmarkedProblemsList.map((p) => ({
-      id: p.id,
-      title: p.title,
-      difficulty: p.difficulty,
+    const bookmarkedProblems = bookmarkedProgressList.map((p) => ({
+      id: p.problem.id,
+      title: p.problem.title,
+      difficulty: p.problem.difficulty,
       solved: p.solved,
-      url: p.url,
+      url: p.problem.url,
       updatedAt: p.updatedAt.toISOString(),
     }));
 
     return NextResponse.json({
-      overall: {
-        totalProblems,
-        solvedProblems,
-        remainingProblems,
-        completionPercentage,
-      },
-      difficulties: {
+      totalProblems,
+      solvedProblems,
+      remainingProblems,
+      completionPercentage,
+      difficultyBreakdown: {
         easy: { solved: easySolved, total: easyTotal },
         medium: { solved: mediumSolved, total: mediumTotal },
         hard: { solved: hardSolved, total: hardTotal },
       },
-      companies: {
+      streak,
+      todaySolvedCount,
+      companyStats: {
         total: totalCompanies,
         completed: completedCompanies,
         started: startedCompanies,
+        notStarted: totalCompanies - startedCompanies - completedCompanies,
       },
-      todaySolvedCount,
-      streak,
       recentActivity,
-      bookmarkedCount: bookmarkedProblems.length,
       bookmarkedProblems,
-      syncConfig: {
-        leetcodeUser: syncConfig?.leetcodeUser || '',
+      syncStatus: {
+        username: syncConfig?.leetcodeUser || '',
         lastSyncedAt: syncConfig?.lastSyncedAt || null,
-        isDemoMode: syncConfig?.isDemoMode || false,
+        isDemoMode: !!syncConfig?.isDemoMode,
         hasSessionCookie: !!syncConfig?.leetcodeSession,
       },
     });
   } catch (error: any) {
-    console.error('Error fetching global statistics:', error);
+    console.error('Error fetching statistics:', error);
     return NextResponse.json({ error: 'Internal Server Error', details: error.message }, { status: 500 });
   }
 }

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getCurrentUserId } from '@/lib/auth-helper';
 
 // GET problem details with companies featuring it
 export async function GET(
@@ -12,23 +13,30 @@ export async function GET(
       return NextResponse.json({ error: 'Invalid problem ID' }, { status: 400 });
     }
 
-    const problem = await prisma.problem.findUnique({
-      where: { id },
-      include: {
-        companies: {
-          select: {
-            frequency: true,
-            company: {
-              select: {
-                id: true,
-                name: true,
-                slug: true,
+    const userId = await getCurrentUserId();
+
+    const [problem, progress] = await Promise.all([
+      prisma.problem.findUnique({
+        where: { id },
+        include: {
+          companies: {
+            select: {
+              frequency: true,
+              company: {
+                select: {
+                  id: true,
+                  name: true,
+                  slug: true,
+                },
               },
             },
           },
         },
-      },
-    });
+      }),
+      prisma.userProblemProgress.findUnique({
+        where: { userId_problemId: { userId, problemId: id } },
+      }),
+    ]);
 
     if (!problem) {
       return NextResponse.json({ error: 'Problem not found' }, { status: 404 });
@@ -47,10 +55,10 @@ export async function GET(
       title: problem.title,
       url: problem.url,
       difficulty: problem.difficulty,
-      solved: problem.solved,
-      solvedAt: problem.solvedAt,
-      notes: problem.notes || '',
-      bookmarked: problem.bookmarked,
+      solved: progress?.solved || false,
+      solvedAt: progress?.solvedAt || null,
+      notes: progress?.notes || '',
+      bookmarked: progress?.bookmarked || false,
       companies,
     });
   } catch (error: any) {
@@ -118,22 +126,20 @@ async function verifyProblemSolvedOnLeetCode(
           'Content-Type': 'application/json',
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         },
-        body: JSON.stringify({ query, variables: { username: username.trim(), limit: 20 } }),
+        body: JSON.stringify({ query, variables: { username, limit: 20 } }),
       });
+
       if (res.ok) {
         const json = await res.json();
-        const subs = json.data?.recentAcSubmissionList || [];
-        const match = subs.find((s: any) => s.titleSlug === titleSlug);
-        if (match) {
-          const ts = parseInt(match.timestamp);
-          return {
-            verified: true,
-            solvedAt: !isNaN(ts) ? new Date(ts * 1000) : new Date(),
-          };
+        const submissions = json.data?.recentAcSubmissionList || [];
+        const found = submissions.find((sub: any) => sub.titleSlug === titleSlug);
+        if (found) {
+          const solvedAt = new Date(parseInt(found.timestamp) * 1000);
+          return { verified: true, solvedAt };
         }
       }
     } catch (e: any) {
-      console.warn('Recent submissions check error:', e.message);
+      console.warn('Public recent submissions check error:', e.message);
     }
   }
 
@@ -151,7 +157,7 @@ async function verifyProblemSolvedOnLeetCode(
   };
 }
 
-// PATCH update problem status
+// PATCH update problem status for current user
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -162,6 +168,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Invalid problem ID' }, { status: 400 });
     }
 
+    const userId = await getCurrentUserId();
     const body = await request.json();
     const { solved, bookmarked, notes } = body;
 
@@ -174,6 +181,11 @@ export async function PATCH(
       return NextResponse.json({ error: 'Problem not found' }, { status: 404 });
     }
 
+    // Get current user progress
+    const existingProgress = await prisma.userProblemProgress.findUnique({
+      where: { userId_problemId: { userId, problemId: id } },
+    });
+
     const dataToUpdate: any = {};
     let solvedStateChanged = false;
     let newSolvedState = false;
@@ -181,7 +193,7 @@ export async function PATCH(
     if (solved !== undefined) {
       if (solved) {
         // Verify with LeetCode before marking as solved
-        const config = await prisma.syncConfig.findUnique({ where: { id: 1 } });
+        const config = await prisma.userSyncConfig.findUnique({ where: { userId } });
         const isSimulation = config?.isDemoMode ||
           config?.leetcodeUser?.toLowerCase() === 'demo' ||
           config?.leetcodeUser?.toLowerCase() === 'simulation';
@@ -207,14 +219,13 @@ export async function PATCH(
             );
           }
 
-          dataToUpdate.solvedAt = verification.solvedAt || existingProblem.solvedAt || new Date();
+          dataToUpdate.solvedAt = verification.solvedAt || existingProgress?.solvedAt || new Date();
         } else {
-          dataToUpdate.solvedAt = existingProblem.solvedAt || new Date();
+          dataToUpdate.solvedAt = existingProgress?.solvedAt || new Date();
         }
 
         dataToUpdate.solved = true;
-        dataToUpdate.solvedViaDemo = false;
-        if (!existingProblem.solved) {
+        if (!existingProgress?.solved) {
           solvedStateChanged = true;
           newSolvedState = true;
         }
@@ -222,8 +233,7 @@ export async function PATCH(
         // Un-marking solved
         dataToUpdate.solved = false;
         dataToUpdate.solvedAt = null;
-        dataToUpdate.solvedViaDemo = false;
-        if (existingProblem.solved) {
+        if (existingProgress?.solved) {
           solvedStateChanged = true;
           newSolvedState = false;
         }
@@ -238,30 +248,39 @@ export async function PATCH(
       dataToUpdate.notes = notes;
     }
 
-    // Perform transaction to update problem, log activity, and update streak
+    // Perform transaction to update user progress, log activity, and update streak
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Update the problem
-      const updated = await tx.problem.update({
-        where: { id },
-        data: dataToUpdate,
+      // 1. Upsert UserProblemProgress
+      const updated = await tx.userProblemProgress.upsert({
+        where: { userId_problemId: { userId, problemId: id } },
+        create: {
+          userId,
+          problemId: id,
+          solved: dataToUpdate.solved || false,
+          solvedAt: dataToUpdate.solvedAt || null,
+          bookmarked: dataToUpdate.bookmarked || false,
+          notes: dataToUpdate.notes || '',
+        },
+        update: dataToUpdate,
       });
 
       // 2. If solved state changed, log activity and calculate streak
       if (solvedStateChanged) {
         await tx.activityLog.create({
           data: {
+            userId,
             problemId: id,
             action: newSolvedState ? 'SOLVED' : 'UNSOLVED',
           },
         });
 
         if (newSolvedState) {
-          // Increment/update streak
-          const stats = await tx.userStats.findUnique({ where: { id: 1 } });
+          const stats = await tx.userStats.findUnique({ where: { userId } });
           const todayStr = new Date().toLocaleDateString('sv-SE'); // YYYY-MM-DD
           
+          let newStreak = 1;
           if (stats) {
-            let newStreak = stats.streak;
+            newStreak = stats.streak;
             const lastSolved = stats.lastSolvedDate;
 
             if (!lastSolved) {
@@ -269,7 +288,6 @@ export async function PATCH(
             } else if (lastSolved === todayStr) {
               // Already solved today
             } else {
-              // Check if lastSolved was yesterday
               const lastSolvedDateObj = new Date(lastSolved);
               const todayDateObj = new Date(todayStr);
               const diffTime = Math.abs(todayDateObj.getTime() - lastSolvedDateObj.getTime());
@@ -281,22 +299,36 @@ export async function PATCH(
                 newStreak = 1;
               }
             }
-
-            await tx.userStats.update({
-              where: { id: 1 },
-              data: {
-                streak: newStreak,
-                lastSolvedDate: todayStr,
-              },
-            });
           }
+
+          await tx.userStats.upsert({
+            where: { userId },
+            create: {
+              userId,
+              streak: newStreak,
+              lastSolvedDate: todayStr,
+            },
+            update: {
+              streak: newStreak,
+              lastSolvedDate: todayStr,
+            },
+          });
         }
       }
 
       return updated;
     });
 
-    return NextResponse.json(result);
+    return NextResponse.json({
+      id: existingProblem.id,
+      title: existingProblem.title,
+      url: existingProblem.url,
+      difficulty: existingProblem.difficulty,
+      solved: result.solved,
+      solvedAt: result.solvedAt,
+      notes: result.notes,
+      bookmarked: result.bookmarked,
+    });
   } catch (error: any) {
     console.error('Error updating problem:', error);
     return NextResponse.json({ error: 'Internal Server Error', details: error.message }, { status: 500 });
