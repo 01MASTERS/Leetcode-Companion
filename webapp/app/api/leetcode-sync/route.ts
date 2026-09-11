@@ -250,11 +250,8 @@ export async function POST(request: Request) {
   try {
     const { username: rawUsername, action, isSimulation, leetcodeSession } = await request.json();
 
-    const username = cleanUsername(rawUsername);
-
-    if (!username) {
-      return NextResponse.json({ error: 'Username is required' }, { status: 400 });
-    }
+    let username = cleanUsername(rawUsername);
+    let targetAction = action || 'full';
 
     const userId = await getCurrentUserId();
 
@@ -265,6 +262,23 @@ export async function POST(request: Request) {
       );
     }
 
+    // Action: Detect username from provided session cookie
+    if (targetAction === 'detect-cookie') {
+      const cleanCookie = leetcodeSession ? extractSessionCookie(leetcodeSession) : '';
+      if (!cleanCookie) {
+        return NextResponse.json({ error: 'Please provide a LEETCODE_SESSION cookie.' }, { status: 400 });
+      }
+      try {
+        const { username: detectedUser } = await fetchExactSolvedProblems(cleanCookie);
+        return NextResponse.json({ success: true, username: detectedUser });
+      } catch (err: any) {
+        return NextResponse.json(
+          { error: err.message || 'Could not verify cookie or extract username.' },
+          { status: 400 }
+        );
+      }
+    }
+
     // Get or create current sync configuration for user
     let config = await prisma.userSyncConfig.findUnique({ where: { userId } });
     if (!config) {
@@ -273,7 +287,27 @@ export async function POST(request: Request) {
       });
     }
 
-    let targetAction = action || 'full';
+    // If username is blank but session cookie is provided, auto-detect username from cookie
+    if (!username) {
+      const cleanRawCookie = leetcodeSession !== undefined ? extractSessionCookie(leetcodeSession) : undefined;
+      const activeCookie = cleanRawCookie !== undefined
+        ? cleanRawCookie
+        : (config.leetcodeSession || '');
+
+      if (activeCookie && activeCookie.trim()) {
+        try {
+          const { username: detectedUser } = await fetchExactSolvedProblems(activeCookie.trim());
+          username = detectedUser;
+        } catch (cookieErr: any) {
+          return NextResponse.json(
+            { error: `Could not auto-detect username from cookie: ${cookieErr.message}` },
+            { status: 400 }
+          );
+        }
+      } else {
+        return NextResponse.json({ error: 'Username is required (or provide a valid session cookie)' }, { status: 400 });
+      }
+    }
     let cachedRecentSubs: LeetCodeSubmission[] = [];
 
     // Recovery Detection: Check if we need to upgrade to full sync

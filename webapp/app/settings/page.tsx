@@ -28,6 +28,39 @@ export default function SettingsPage() {
 
   const syncConfig = stats?.syncConfig;
 
+  const [isDetecting, setIsDetecting] = useState(false);
+
+  // Auto-detect username from cookie
+  const handleDetectUsername = async (cookieValue?: string) => {
+    const rawVal = cookieValue !== undefined ? cookieValue : leetcodeSession;
+    if (!rawVal || rawVal === '••••••••••••••••') {
+      addToast('Please enter or paste a LEETCODE_SESSION cookie first.', 'info');
+      return;
+    }
+    try {
+      setIsDetecting(true);
+      const res = await fetch('/api/leetcode-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'detect-cookie',
+          leetcodeSession: rawVal,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.username) {
+        setUsername(data.username);
+        addToast(`Successfully detected LeetCode username: @${data.username}`, 'success');
+      } else {
+        addToast(data.error || 'Could not detect username from cookie.', 'error');
+      }
+    } catch (err: any) {
+      addToast(err.message || 'Error checking session cookie.', 'error');
+    } finally {
+      setIsDetecting(false);
+    }
+  };
+
   // Prefill the form inputs once the settings configurations load from the DB
   useEffect(() => {
     if (syncConfig?.leetcodeUser) {
@@ -91,8 +124,8 @@ export default function SettingsPage() {
 
   const handleSyncSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username.trim()) {
-      addToast('Please enter a valid LeetCode username.', 'error');
+    if (!username.trim() && !leetcodeSession.trim()) {
+      addToast('Please enter a valid LeetCode username or paste a session cookie.', 'error');
       return;
     }
     syncMutation.mutate();
@@ -169,14 +202,21 @@ export default function SettingsPage() {
 
           <form onSubmit={handleSyncSubmit} className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                LeetCode Username
-              </label>
+              <div className="flex justify-between items-baseline">
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                  LeetCode Username
+                </label>
+                {username && (
+                  <span className="text-[11px] font-semibold text-primary">
+                    @{username}
+                  </span>
+                )}
+              </div>
               <input
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="e.g. neetcode, lc_master, or 'simulation'"
+                placeholder="e.g. neetcode, lc_master, or leave blank to auto-detect from cookie"
                 className="bg-input-bg border border-border text-sm text-foreground rounded-xl p-3 outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-muted-foreground"
               />
             </div>
@@ -188,14 +228,35 @@ export default function SettingsPage() {
                   <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                     LeetCode Session Cookie (Optional)
                   </label>
-                  <span className="text-[10px] text-muted-foreground font-semibold leading-relaxed">
-                    Paste cookie for 100% exact sync of all solved slugs.
-                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleDetectUsername()}
+                    disabled={isDetecting || !leetcodeSession || leetcodeSession === '••••••••••••••••'}
+                    className="text-[11px] font-semibold text-primary hover:underline disabled:opacity-40 disabled:no-underline flex items-center gap-1 cursor-pointer"
+                  >
+                    {isDetecting ? (
+                      <>
+                        <RefreshCw className="h-3 w-3 animate-spin" />
+                        Detecting...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-3 w-3" />
+                        Auto-detect Username
+                      </>
+                    )}
+                  </button>
                 </div>
                 <input
                   type="password"
                   value={leetcodeSession}
-                  onChange={(e) => setLeetcodeSession(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setLeetcodeSession(val);
+                    if (val && val.length > 50 && val !== '••••••••••••••••') {
+                      handleDetectUsername(val);
+                    }
+                  }}
                   placeholder={syncConfig?.hasSessionCookie ? "Session cookie saved (securely stored locally)" : "Enter LEETCODE_SESSION cookie value"}
                   className="bg-input-bg border border-border text-sm text-foreground rounded-xl p-3 outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-muted-foreground"
                 />
