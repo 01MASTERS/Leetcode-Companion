@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useSession, signIn } from 'next-auth/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTrackerStore } from '@/store/useTrackerStore';
-import { RefreshCw, Database, Info, AlertTriangle, ShieldCheck, Sparkles } from 'lucide-react';
+import { RefreshCw, Info, AlertTriangle } from 'lucide-react';
 import { formatDate } from '@/utils/helpers';
 import { Stats } from '@/types';
 
@@ -140,21 +140,21 @@ export default function SettingsPage() {
 
       {/* Guest Mode Notice */}
       {status === 'unauthenticated' && (
-        <div className="glass border border-amber-500/30 bg-amber-500/10 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-amber-500/20 text-amber-500 rounded-xl">
-              <Sparkles className="h-5 w-5" />
-            </div>
-            <div>
-              <h4 className="text-sm font-semibold text-foreground">You are browsing in Guest Mode</h4>
-              <p className="text-xs text-muted-foreground">Sign in with Google to link your LeetCode profile, sync solves across devices, and save personal notes.</p>
-            </div>
+        <div className="glass border border-amber-500/25 bg-amber-500/5 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+              You are browsing in Guest Mode
+            </h4>
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+              Sign in with Google to link your LeetCode profile, sync solves across devices, and save personal notes.
+            </p>
           </div>
           <button
             onClick={() => signIn('google')}
-            className="flex items-center gap-2.5 px-4 py-2 rounded-xl border border-border/90 bg-card hover:bg-muted/70 hover:border-border text-foreground font-semibold text-xs transition-all shrink-0 active:scale-95 shadow-sm cursor-pointer"
+            className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl border border-border/80 bg-card hover:bg-muted/80 hover:border-border text-foreground font-medium text-xs transition-all shrink-0 active:scale-95 shadow-sm cursor-pointer"
           >
-            <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24">
+            <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24">
               <path
                 fill="#4285F4"
                 d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -234,7 +234,7 @@ export default function SettingsPage() {
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="e.g. neetcode, lc_master, or leave blank to auto-detect from cookie"
+                placeholder="e.g. neetcode, lc_master"
                 className="bg-input-bg border border-border text-sm text-foreground rounded-xl p-3 outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-muted-foreground"
               />
             </div>
@@ -242,29 +242,9 @@ export default function SettingsPage() {
             {/* Authenticated Cookie Input */}
             {!isSimulation && (
               <div className="flex flex-col gap-1.5">
-                <div className="flex justify-between items-baseline">
-                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                    LeetCode Session Cookie (Optional)
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => handleDetectUsername()}
-                    disabled={isDetecting || !leetcodeSession || leetcodeSession === '••••••••••••••••'}
-                    className="text-[11px] font-semibold text-primary hover:underline disabled:opacity-40 disabled:no-underline flex items-center gap-1 cursor-pointer"
-                  >
-                    {isDetecting ? (
-                      <>
-                        <RefreshCw className="h-3 w-3 animate-spin" />
-                        Detecting...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="h-3 w-3" />
-                        Auto-detect Username
-                      </>
-                    )}
-                  </button>
-                </div>
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                  LeetCode Session Cookie (Optional)
+                </label>
                 <input
                   type="password"
                   value={leetcodeSession}
@@ -332,33 +312,6 @@ export default function SettingsPage() {
               <span>Last Sync: <strong className="text-foreground">{syncConfig.lastSyncedAt ? formatDate(syncConfig.lastSyncedAt) : 'Never'}</strong></span>
             </div>
           )}
-        </div>
-
-        {/* Database Stats Panel */}
-        <div className="glass border border-border rounded-2xl p-6 flex flex-col gap-4">
-          <div className="flex items-center gap-3">
-            <div className="bg-muted p-2.5 rounded-xl text-muted-foreground">
-              <Database className="h-5 w-5" />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-foreground">Database Info</h2>
-              <p className="text-xs text-muted-foreground">Local SQLite database containing interview questions.</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-            <div className="p-3 bg-muted/30 border border-border rounded-xl flex flex-col gap-1">
-              <span className="text-muted-foreground font-semibold uppercase tracking-wider">Engine</span>
-              <span className="text-sm font-bold text-foreground">Prisma client + SQLite</span>
-            </div>
-            <div className="p-3 bg-muted/30 border border-border rounded-xl flex flex-col gap-1">
-              <span className="text-muted-foreground font-semibold uppercase tracking-wider">Status</span>
-              <span className="text-sm font-bold text-emerald-500 dark:text-emerald-400 flex items-center gap-1">
-                <ShieldCheck className="h-4 w-4" />
-                Connected
-              </span>
-            </div>
-          </div>
         </div>
       </div>
     </div>
