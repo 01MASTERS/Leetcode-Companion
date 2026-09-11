@@ -37,16 +37,16 @@ export default function Sidebar() {
 
       {/* Brand header */}
       <div className="h-16 flex items-center px-4 border-b border-border flex-shrink-0 overflow-hidden">
-        <Link href="/dashboard" className="flex items-center gap-3 w-full justify-center sidebarOpen:justify-start">
+        <Link href="/" className="flex items-center gap-3 w-full justify-center sidebarOpen:justify-start group" title="Return to Homepage">
           <div className="flex items-center justify-center flex-shrink-0">
-            <img src="/logo.png" alt="LC Tracker Logo" className="h-9 w-9 rounded-xl object-contain shadow-sm" />
+            <img src="/logo.png" alt="LC Tracker Logo" className="h-9 w-9 rounded-xl object-contain shadow-sm group-hover:scale-105 transition-transform" />
           </div>
           {sidebarOpen && (
             <motion.span
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -10 }}
-              className="font-bold text-foreground tracking-tight whitespace-nowrap"
+              className="font-bold text-foreground tracking-tight whitespace-nowrap group-hover:text-primary transition-colors"
             >
               LC Tracker
             </motion.span>
