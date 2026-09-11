@@ -6,9 +6,11 @@ import { useQuery } from '@tanstack/react-query';
 import { useTrackerStore } from '@/store/useTrackerStore';
 import { CatalogSyncStatus } from '@/types';
 import { formatRelativeTime, formatExactTimestamp } from '@/utils/helpers';
+import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { X, History, ExternalLink, CheckCircle2, GitCommit, Layers, Database, ShieldCheck } from 'lucide-react';
 
 export default function SyncHistoryModal() {
+  const isAdmin = useIsAdmin();
   const { syncHistoryModalOpen, closeSyncHistoryModal } = useTrackerStore();
 
   const { data, isLoading } = useQuery<CatalogSyncStatus>({
@@ -19,7 +21,7 @@ export default function SyncHistoryModal() {
       return res.json();
     },
     staleTime: 1000 * 60 * 5, // 5 minutes cache
-    enabled: syncHistoryModalOpen,
+    enabled: syncHistoryModalOpen && isAdmin,
   });
 
   // Close on Escape key
@@ -35,7 +37,7 @@ export default function SyncHistoryModal() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [syncHistoryModalOpen, closeSyncHistoryModal]);
 
-  if (!syncHistoryModalOpen) return null;
+  if (!syncHistoryModalOpen || !isAdmin) return null;
 
   const latest = data?.latest;
   const history = data?.history || [];

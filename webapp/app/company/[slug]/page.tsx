@@ -5,8 +5,8 @@ import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTrackerStore } from '@/store/useTrackerStore';
 import { CompanyDetail, Problem } from '@/types';
-import { getDifficultyColor, formatPercent, formatRelativeTime, formatExactTimestamp } from '@/utils/helpers';
-import { ArrowLeft, Play, ExternalLink, Bookmark, CheckCircle, Circle, Star, HelpCircle, Calendar, ShieldCheck } from 'lucide-react';
+import { getDifficultyColor, formatPercent, formatRelativeTime } from '@/utils/helpers';
+import { ArrowLeft, Play, ExternalLink, Bookmark, CheckCircle, Circle, Star, HelpCircle, Calendar } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 type RecencyFilter = 'all' | 'thirtyDays' | 'threeMonths' | 'sixMonths' | 'moreThanSixMonths';
@@ -17,7 +17,7 @@ export default function CompanyPage() {
   const slug = params.slug as string;
   const queryClient = useQueryClient();
   
-  const { globalSearch, setGlobalSearch, setSelectedProblemId, addToast, openGuestGate, openSyncHistoryModal } = useTrackerStore();
+  const { globalSearch, setGlobalSearch, setSelectedProblemId, addToast, openGuestGate } = useTrackerStore();
   
   // Local page filters
   const [difficultyFilter, setDifficultyFilter] = useState<'all' | 'Easy' | 'Medium' | 'Hard'>('all');
@@ -135,7 +135,7 @@ export default function CompanyPage() {
         <h3 className="text-lg font-bold text-foreground">Company Not Found</h3>
         <p className="text-sm">The company you are looking for does not exist or has no question data.</p>
         <button
-          onClick={() => router.push('/')}
+          onClick={() => router.push('/dashboard')}
           className="flex items-center gap-2 px-4 py-2 border border-border bg-card rounded-xl hover:bg-muted transition-colors cursor-pointer"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -152,7 +152,7 @@ export default function CompanyPage() {
       {/* Back button */}
       <div>
         <button
-          onClick={() => router.push('/')}
+          onClick={() => router.push('/dashboard')}
           className="flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors py-1 cursor-pointer"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -163,32 +163,13 @@ export default function CompanyPage() {
       {/* Sticky Progress Bar & Title Area */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-5">
         <div>
-          <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-baseline gap-3 flex-wrap">
             <h1 className="text-3xl font-black text-foreground tracking-tight">{name}</h1>
-            {/* Per-Company Catalog Freshness Badge */}
-            <button
-              onClick={() => openSyncHistoryModal()}
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-xs font-semibold hover:bg-emerald-500/20 transition-all cursor-pointer shadow-sm group"
-              title={
-                company.updatedAt
-                  ? `Verified against upstream interview reports on ${formatExactTimestamp(company.updatedAt)}. Click to view sync history.`
-                  : 'Verified active catalog. Click to view sync history.'
-              }
-            >
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+            {company.updatedAt && (
+              <span className="text-xs text-muted-foreground font-medium">
+                Last updated: {formatRelativeTime(company.updatedAt)}
               </span>
-              <ShieldCheck className="h-3.5 w-3.5" />
-              <span>
-                Verified 2026 Frequency
-                {company.updatedAt && (
-                  <span className="text-emerald-300/80 font-normal">
-                    {' '}• Refreshed {formatRelativeTime(company.updatedAt)}
-                  </span>
-                )}
-              </span>
-            </button>
+            )}
           </div>
           <p className="text-sm text-muted-foreground mt-2 flex items-center gap-2 flex-wrap">
             <span>Progress:</span>

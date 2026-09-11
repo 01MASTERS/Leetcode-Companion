@@ -5,9 +5,11 @@ import { useQuery } from '@tanstack/react-query';
 import { useTrackerStore } from '@/store/useTrackerStore';
 import { CatalogSyncStatus } from '@/types';
 import { formatRelativeTime, formatExactTimestamp } from '@/utils/helpers';
+import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { Zap, ExternalLink, GitCommit, ChevronRight, CheckCircle2 } from 'lucide-react';
 
 export default function FreshnessBadge() {
+  const isAdmin = useIsAdmin();
   const { openSyncHistoryModal } = useTrackerStore();
   const [isOpen, setIsOpen] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -25,11 +27,13 @@ export default function FreshnessBadge() {
   const latest = data?.latest;
 
   const handleMouseEnter = () => {
+    if (!isAdmin) return;
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     setIsOpen(true);
   };
 
   const handleMouseLeave = () => {
+    if (!isAdmin) return;
     timeoutRef.current = setTimeout(() => {
       setIsOpen(false);
     }, 200);
@@ -40,6 +44,20 @@ export default function FreshnessBadge() {
   }
 
   const relativeText = formatRelativeTime(latest.syncedAt);
+
+  // For regular users and guests: only display the title badge, no hover popover, no modal click
+  if (!isAdmin) {
+    return (
+      <div
+        className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-card border border-border/80 text-xs text-muted-foreground select-none"
+        title={`Questions updated: ${relativeText}`}
+      >
+        <Zap className="h-3 w-3 text-amber-400" />
+        <span className="text-[11px] font-medium hidden md:inline">Questions updated:</span>
+        <span className="text-[11px] font-bold text-foreground">{relativeText}</span>
+      </div>
+    );
+  }
 
   return (
     <div
