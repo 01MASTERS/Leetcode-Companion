@@ -55,6 +55,10 @@
 ## 📝 Recent Change Log
 
 * **2026-09-11**:
+  * **Critical Bug Fixes (Stats & LeetCode Sync Pipeline)**:
+    * **Fix 1 (`stats.overall.solvedProblems` TypeError)**: Realigned `/api/stats` endpoint return structure to match frontend `Stats` interface (`stats.overall`, `stats.difficulties`, `stats.companies`, `stats.syncConfig`), and added defensive optional chaining across `Dashboard` KPI cards and `Navbar`.
+    * **Fix 2 (`P2028: Transaction API timeout` on LeetCode Sync)**: Replaced sequential individual `tx.userProblemProgress.upsert` queries inside Prisma interactive transactions with high-performance PostgreSQL chunked batch upserts (`INSERT ... ON CONFLICT DO UPDATE`), cutting sync time from >10s (timeout) to ~1.3s for 100+ problems.
+    * **Fix 3 (Cookie Token Parsing & Username Sanitization)**: Added robust `extractSessionCookie()` to strip quotes, `LEETCODE_SESSION=` prefixes, and header noise; added `cleanUsername()` to strip URL prefixes (e.g. `leetcode.com/u/xxx`); and exposed transparent cookie verification feedback in `SettingsPage`.
   * **Phase 2 Completed**:
     * Installed `next-auth@5.0.0-beta.32` and `@auth/prisma-adapter@2.11.3`.
     * Configured Auth.js with Google OAuth provider, JWT session strategy, and Prisma adapter in `webapp/auth.ts` and `webapp/app/api/auth/[...nextauth]/route.ts`.
