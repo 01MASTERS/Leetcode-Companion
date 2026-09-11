@@ -6,7 +6,7 @@ import { useTrackerStore } from '@/store/useTrackerStore';
 import { CatalogSyncStatus } from '@/types';
 import { formatRelativeTime, formatExactTimestamp } from '@/utils/helpers';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
-import { Zap, ExternalLink, GitCommit, ChevronRight, CheckCircle2 } from 'lucide-react';
+import { ExternalLink, GitCommit, ChevronRight, CheckCircle2 } from 'lucide-react';
 
 export default function FreshnessBadge() {
   const isAdmin = useIsAdmin();
@@ -49,11 +49,12 @@ export default function FreshnessBadge() {
   if (!isAdmin) {
     return (
       <div
-        className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-card border border-border/80 text-xs text-muted-foreground select-none"
+        className="flex items-center px-3 py-1 rounded-xl bg-card border border-border/80 text-xs text-muted-foreground select-none"
         title={`Questions updated: ${relativeText}`}
       >
-        <Zap className="h-3 w-3 text-amber-400" />
-        <span className="text-[11px] font-bold text-foreground">{relativeText}</span>
+        <span className="text-[11px] font-medium text-muted-foreground">
+          Questions updated <strong className="text-foreground font-semibold">{relativeText}</strong>
+        </span>
       </div>
     );
   }
@@ -67,16 +68,13 @@ export default function FreshnessBadge() {
       {/* Trigger Badge */}
       <button
         onClick={() => openSyncHistoryModal()}
-        className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-card border border-border/80 hover:border-border hover:bg-muted/60 transition-all text-xs text-muted-foreground hover:text-foreground cursor-pointer group shadow-sm select-none"
+        className="flex items-center px-3 py-1 rounded-xl bg-card border border-border/80 hover:border-border hover:bg-muted/60 transition-all text-xs text-muted-foreground hover:text-foreground cursor-pointer group shadow-sm select-none"
         title={`Catalog updated: ${relativeText}. Click to view sync audit history`}
         aria-label="Catalog freshness status"
       >
-        <span className="relative flex h-2 w-2">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+        <span className="text-[11px] font-medium text-muted-foreground group-hover:text-foreground transition-colors">
+          Questions updated <strong className="text-foreground font-semibold">{relativeText}</strong>
         </span>
-        <Zap className="h-3 w-3 text-amber-400 group-hover:scale-110 transition-transform" />
-        <span className="text-[11px] font-bold text-foreground">{relativeText}</span>
       </button>
 
       {/* Glassmorphic Hover Popover */}
