@@ -53,7 +53,6 @@ export default function FreshnessBadge() {
         title={`Questions updated: ${relativeText}`}
       >
         <Zap className="h-3 w-3 text-amber-400" />
-        <span className="text-[11px] font-medium hidden md:inline">Questions updated:</span>
         <span className="text-[11px] font-bold text-foreground">{relativeText}</span>
       </div>
     );
@@ -69,7 +68,7 @@ export default function FreshnessBadge() {
       <button
         onClick={() => openSyncHistoryModal()}
         className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-card border border-border/80 hover:border-border hover:bg-muted/60 transition-all text-xs text-muted-foreground hover:text-foreground cursor-pointer group shadow-sm select-none"
-        title="Click to view catalog sync audit history"
+        title={`Catalog updated: ${relativeText}. Click to view sync audit history`}
         aria-label="Catalog freshness status"
       >
         <span className="relative flex h-2 w-2">
@@ -77,7 +76,6 @@ export default function FreshnessBadge() {
           <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
         </span>
         <Zap className="h-3 w-3 text-amber-400 group-hover:scale-110 transition-transform" />
-        <span className="text-[11px] font-medium hidden md:inline">Questions updated:</span>
         <span className="text-[11px] font-bold text-foreground">{relativeText}</span>
       </button>
 

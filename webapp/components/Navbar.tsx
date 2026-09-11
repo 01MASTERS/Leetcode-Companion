@@ -161,27 +161,12 @@ export default function Navbar() {
 
         {/* Streak counter */}
         {stats && stats.streak > 0 && status === 'authenticated' && (
-          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-lg text-xs font-semibold select-none animate-pulse">
-            <Flame className="h-4 w-4 fill-amber-500" />
-            <span>{stats.streak} Day Streak</span>
-          </div>
-        )}
-
-        {/* Global Progress mini-indicator */}
-        {stats && status === 'authenticated' && stats.overall && (
-          <div className="hidden xl:flex items-center gap-3">
-            <div className="text-right">
-              <div className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Solved</div>
-              <div className="text-sm font-bold text-foreground">
-                {stats.overall.solvedProblems ?? 0} <span className="text-muted-foreground">/ {stats.overall.totalProblems ?? 0}</span>
-              </div>
-            </div>
-            <div className="w-16 bg-zinc-200 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden">
-              <div
-                className="bg-primary h-full rounded-full transition-all duration-500"
-                style={{ width: `${stats.overall.completionPercentage ?? 0}%` }}
-              />
-            </div>
+          <div
+            className="flex items-center gap-1 px-2.5 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-xl text-xs font-semibold select-none"
+            title={`${stats.streak} Day Streak`}
+          >
+            <Flame className="h-3.5 w-3.5 fill-amber-500" />
+            <span>{stats.streak}</span>
           </div>
         )}
 
@@ -197,17 +182,6 @@ export default function Navbar() {
           </div>
         </label>
 
-        {/* LeetCode Direct Link */}
-        <a
-          href="https://leetcode.com"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="hidden md:flex text-muted-foreground hover:text-primary p-2 rounded-lg hover:bg-muted transition-colors items-center gap-1 text-xs font-semibold"
-        >
-          LeetCode
-          <ArrowUpRight className="h-3 w-3" />
-        </a>
-
         {/* Divider */}
         <div className="h-4 w-[1px] bg-border" />
 
@@ -218,7 +192,7 @@ export default function Navbar() {
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-              className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-muted/80 transition-colors border border-transparent hover:border-border"
+              className="flex items-center gap-1.5 p-1 rounded-xl hover:bg-muted/80 transition-colors border border-transparent hover:border-border"
               aria-label="User profile menu"
             >
               {session.user.image ? (
@@ -232,9 +206,6 @@ export default function Navbar() {
                   {session.user.name?.charAt(0).toUpperCase() || 'U'}
                 </div>
               )}
-              <span className="hidden md:block text-xs font-medium max-w-[100px] truncate text-foreground">
-                {session.user.name || 'User'}
-              </span>
               <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
             </button>
 
@@ -261,6 +232,20 @@ export default function Navbar() {
                     <SettingsIcon className="h-3.5 w-3.5 text-muted-foreground" />
                     <span>Settings & Sync</span>
                   </Link>
+
+                  <a
+                    href="https://leetcode.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => setUserDropdownOpen(false)}
+                    className="flex items-center justify-between px-4 py-2 text-xs text-foreground hover:bg-muted transition-colors"
+                  >
+                    <span className="flex items-center gap-2">
+                      <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span>LeetCode Profile</span>
+                    </span>
+                    <span className="text-[10px] font-mono text-muted-foreground">↗</span>
+                  </a>
                 </div>
 
                 <div className="border-t border-border/60 pt-1">
