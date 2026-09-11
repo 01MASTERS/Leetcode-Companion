@@ -1,8 +1,15 @@
-// Helper to get current user ID across API routes
-// In Phase 1, defaults to 'default-user' so all functionality works immediately
-// In Phase 2, this will be connected to Auth.js session
+import { auth } from '@/auth';
 
-export async function getCurrentUserId(): Promise<string> {
-  // Can be extended with cookies/headers or Auth.js session in Phase 2
-  return 'default-user';
+// Helper to get current user ID across server components and API routes
+// Returns user.id if logged in via Google OAuth, or null if in Guest Mode
+export async function getCurrentUserId(): Promise<string | null> {
+  try {
+    const session = await auth();
+    if (session?.user?.id) {
+      return session.user.id;
+    }
+  } catch (error) {
+    console.error('Error retrieving session in getCurrentUserId:', error);
+  }
+  return null;
 }

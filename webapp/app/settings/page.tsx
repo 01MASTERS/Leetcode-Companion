@@ -1,15 +1,17 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useSession, signIn } from 'next-auth/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTrackerStore } from '@/store/useTrackerStore';
-import { RefreshCw, Database, Info, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { RefreshCw, Database, Info, AlertTriangle, ShieldCheck, Sparkles } from 'lucide-react';
 import { formatDate } from '@/utils/helpers';
 import { Stats } from '@/types';
 
 export default function SettingsPage() {
   const queryClient = useQueryClient();
-  const { addToast } = useTrackerStore();
+  const { data: session, status } = useSession();
+  const { addToast, openGuestGate } = useTrackerStore();
   const [username, setUsername] = useState('');
   const [leetcodeSession, setLeetcodeSession] = useState('');
   const [isSimulation, setIsSimulation] = useState(true);
@@ -53,7 +55,12 @@ export default function SettingsPage() {
           leetcodeSession: sessionToSend,
         }),
       });
-      if (!res.ok) throw new Error('Sync failed');
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        const err: any = new Error(data.error || 'Sync failed');
+        err.isGuest = data.isGuest || res.status === 401;
+        throw err;
+      }
       return res.json();
     },
     onSuccess: (data) => {
@@ -70,8 +77,12 @@ export default function SettingsPage() {
         addToast(data.message || 'Sync completed with no changes.', 'info');
       }
     },
-    onError: () => {
-      addToast('LeetCode Sync failed. Check username, cookie validity, or network.', 'error');
+    onError: (err: any) => {
+      if (err.isGuest || err.message?.includes('Sign in with Google')) {
+        openGuestGate('Sign in with Google to enable automated LeetCode progress synchronization.');
+      } else {
+        addToast(err.message || 'LeetCode Sync failed. Check username, cookie validity, or network.', 'error');
+      }
     },
   });
 
@@ -90,6 +101,27 @@ export default function SettingsPage() {
         <h1 className="text-3xl font-black text-foreground tracking-tight">Settings</h1>
         <p className="text-sm text-muted-foreground mt-1">Configure and manage your LC tracker account settings.</p>
       </div>
+
+      {/* Guest Mode Notice */}
+      {status === 'unauthenticated' && (
+        <div className="glass border border-amber-500/30 bg-amber-500/10 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-amber-500/20 text-amber-500 rounded-xl">
+              <Sparkles className="h-5 w-5" />
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold text-foreground">You are browsing in Guest Mode</h4>
+              <p className="text-xs text-muted-foreground">Sign in with Google to link your LeetCode profile, sync solves across devices, and save personal notes.</p>
+            </div>
+          </div>
+          <button
+            onClick={() => signIn('google')}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-foreground text-background font-semibold text-xs hover:opacity-90 transition-all shrink-0 active:scale-95 shadow-md"
+          >
+            Sign In with Google
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-6">
         {/* LeetCode Sync Panel */}

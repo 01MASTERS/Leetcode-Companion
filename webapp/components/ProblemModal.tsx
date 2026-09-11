@@ -26,7 +26,7 @@ interface ProblemDetail {
 
 export default function ProblemModal() {
   const queryClient = useQueryClient();
-  const { selectedProblemId, setSelectedProblemId, addToast } = useTrackerStore();
+  const { selectedProblemId, setSelectedProblemId, addToast, openGuestGate } = useTrackerStore();
   const [notesText, setNotesText] = useState('');
   const [isSavingNotes, setIsSavingNotes] = useState(false);
 
@@ -57,7 +57,12 @@ export default function ProblemModal() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ bookmarked }),
       });
-      if (!res.ok) throw new Error('Failed to update status');
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        const err: any = new Error(data.error || 'Failed to update bookmark');
+        err.isGuest = data.isGuest || res.status === 401;
+        throw err;
+      }
       return res.json();
     },
     onSuccess: (data) => {
@@ -66,6 +71,13 @@ export default function ProblemModal() {
       queryClient.invalidateQueries({ queryKey: ['companies'] });
       queryClient.invalidateQueries({ queryKey: ['stats'] });
       addToast(data.bookmarked ? 'Added problem to Bookmarks' : 'Removed from Bookmarks', 'success');
+    },
+    onError: (err: any) => {
+      if (err.isGuest || err.message?.includes('Sign in with Google')) {
+        openGuestGate('Sign in with Google to bookmark problems across all your devices.');
+      } else {
+        addToast(err.message || 'Failed to update bookmark', 'error');
+      }
     },
   });
 
@@ -79,7 +91,9 @@ export default function ProblemModal() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'Failed to update solved status');
+        const err: any = new Error(data.error || 'Failed to update solved status');
+        err.isGuest = data.isGuest || res.status === 401;
+        throw err;
       }
       return res.json();
     },
@@ -91,7 +105,11 @@ export default function ProblemModal() {
       addToast(data.solved ? 'Verified with LeetCode & marked as solved! 🎉' : 'Marked problem as unsolved', 'success');
     },
     onError: (err: any) => {
-      addToast(err.message || 'Failed to update solved status', 'error');
+      if (err.isGuest || err.message?.includes('Sign in with Google')) {
+        openGuestGate('Sign in with Google to sync and track your solved problems.');
+      } else {
+        addToast(err.message || 'Failed to update solved status', 'error');
+      }
     },
   });
 
@@ -104,7 +122,12 @@ export default function ProblemModal() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ notes }),
       });
-      if (!res.ok) throw new Error('Failed to save notes');
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        const err: any = new Error(data.error || 'Failed to save notes');
+        err.isGuest = data.isGuest || res.status === 401;
+        throw err;
+      }
       return res.json();
     },
     onSuccess: () => {
@@ -112,8 +135,12 @@ export default function ProblemModal() {
       addToast('Notes saved successfully', 'success');
       setIsSavingNotes(false);
     },
-    onError: () => {
-      addToast('Failed to save notes.', 'error');
+    onError: (err: any) => {
+      if (err.isGuest || err.message?.includes('Sign in with Google')) {
+        openGuestGate('Sign in with Google to save notes to your personal cloud account.');
+      } else {
+        addToast(err.message || 'Failed to save notes.', 'error');
+      }
       setIsSavingNotes(false);
     },
   });

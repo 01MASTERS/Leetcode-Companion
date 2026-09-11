@@ -126,6 +126,13 @@ export async function POST(request: Request) {
 
     const userId = await getCurrentUserId();
 
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Sign in with Google to enable automatic LeetCode sync.', isGuest: true },
+        { status: 401 }
+      );
+    }
+
     // Get or create current sync configuration for user
     let config = await prisma.userSyncConfig.findUnique({ where: { userId } });
     if (!config) {

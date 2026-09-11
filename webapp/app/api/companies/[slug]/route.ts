@@ -27,14 +27,18 @@ export async function GET(
                 title: true,
                 url: true,
                 difficulty: true,
-                userProgress: {
-                  where: { userId },
-                  select: {
-                    solved: true,
-                    notes: true,
-                    bookmarked: true,
-                  },
-                },
+                ...(userId
+                  ? {
+                      userProgress: {
+                        where: { userId },
+                        select: {
+                          solved: true,
+                          notes: true,
+                          bookmarked: true,
+                        },
+                      },
+                    }
+                  : {}),
               },
             },
           },
@@ -48,7 +52,7 @@ export async function GET(
 
     // Format problems
     const problems = company.problems.map(cp => {
-      const progress = cp.problem.userProgress?.[0];
+      const progress = (cp.problem as any).userProgress?.[0];
       return {
         id: cp.problem.id,
         title: cp.problem.title,
@@ -82,6 +86,7 @@ export async function GET(
       id: company.id,
       name: company.name,
       slug: company.slug,
+      isGuest: !userId,
       stats: {
         totalProblems,
         solvedProblems,

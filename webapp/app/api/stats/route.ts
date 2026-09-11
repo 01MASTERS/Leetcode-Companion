@@ -8,16 +8,53 @@ export async function GET() {
     const startOfToday = new Date(todayStr + 'T00:00:00');
     const userId = await getCurrentUserId();
 
-    // Run all independent queries in parallel
+    // Catalog queries run for all visitors
+    const [totalProblems, easyTotal, mediumTotal, hardTotal, totalCompanies] = await Promise.all([
+      prisma.problem.count(),
+      prisma.problem.count({ where: { difficulty: 'Easy' } }),
+      prisma.problem.count({ where: { difficulty: 'Medium' } }),
+      prisma.problem.count({ where: { difficulty: 'Hard' } }),
+      prisma.company.count(),
+    ]);
+
+    if (!userId) {
+      // Guest Mode Stats Response
+      return NextResponse.json({
+        totalProblems,
+        solvedProblems: 0,
+        remainingProblems: totalProblems,
+        completionPercentage: 0,
+        difficultyBreakdown: {
+          easy: { solved: 0, total: easyTotal },
+          medium: { solved: 0, total: mediumTotal },
+          hard: { solved: 0, total: hardTotal },
+        },
+        streak: 0,
+        todaySolvedCount: 0,
+        companyStats: {
+          total: totalCompanies,
+          completed: 0,
+          started: 0,
+          notStarted: totalCompanies,
+        },
+        recentActivity: [],
+        bookmarkedProblems: [],
+        syncStatus: {
+          username: '',
+          lastSyncedAt: null,
+          isDemoMode: false,
+          hasSessionCookie: false,
+        },
+        isGuest: true,
+      });
+    }
+
+    // Authenticated User Queries
     const [
-      totalProblems,
       solvedProblems,
       easySolved,
-      easyTotal,
       mediumSolved,
-      mediumTotal,
       hardSolved,
-      hardTotal,
       todaySolvedCount,
       recentActivityProblems,
       userStats,
@@ -25,20 +62,16 @@ export async function GET() {
       syncConfig,
       companyStatsRaw,
     ] = await Promise.all([
-      prisma.problem.count(),
       prisma.userProblemProgress.count({ where: { userId, solved: true } }),
       prisma.userProblemProgress.count({
         where: { userId, solved: true, problem: { difficulty: 'Easy' } },
       }),
-      prisma.problem.count({ where: { difficulty: 'Easy' } }),
       prisma.userProblemProgress.count({
         where: { userId, solved: true, problem: { difficulty: 'Medium' } },
       }),
-      prisma.problem.count({ where: { difficulty: 'Medium' } }),
       prisma.userProblemProgress.count({
         where: { userId, solved: true, problem: { difficulty: 'Hard' } },
       }),
-      prisma.problem.count({ where: { difficulty: 'Hard' } }),
       prisma.userProblemProgress.count({
         where: {
           userId,
@@ -70,9 +103,8 @@ export async function GET() {
         },
       }),
       prisma.userSyncConfig.findUnique({ where: { userId } }),
-      prisma.$queryRawUnsafe<Array<{ totalCompanies: bigint; completedCompanies: bigint; startedCompanies: bigint }>>(`
+      prisma.$queryRawUnsafe<Array<{ completedCompanies: bigint; startedCompanies: bigint }>>(`
         SELECT 
-          (SELECT COUNT(*) FROM "Company") as "totalCompanies",
           COUNT(CASE WHEN total_cnt > 0 AND solved_cnt = total_cnt THEN 1 END) as "completedCompanies",
           COUNT(CASE WHEN solved_cnt > 0 AND solved_cnt < total_cnt THEN 1 END) as "startedCompanies"
         FROM (
@@ -89,7 +121,6 @@ export async function GET() {
     const remainingProblems = totalProblems - solvedProblems;
     const completionPercentage = totalProblems > 0 ? (solvedProblems / totalProblems) * 100 : 0;
 
-    const totalCompanies = Number(companyStatsRaw[0]?.totalCompanies || 0);
     const completedCompanies = Number(companyStatsRaw[0]?.completedCompanies || 0);
     const startedCompanies = Number(companyStatsRaw[0]?.startedCompanies || 0);
 
@@ -138,6 +169,7 @@ export async function GET() {
         isDemoMode: !!syncConfig?.isDemoMode,
         hasSessionCookie: !!syncConfig?.leetcodeSession,
       },
+      isGuest: false,
     });
   } catch (error: any) {
     console.error('Error fetching statistics:', error);

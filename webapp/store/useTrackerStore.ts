@@ -27,6 +27,12 @@ interface TrackerState {
   toasts: Toast[];
   addToast: (message: string, type: 'success' | 'error' | 'info') => void;
   removeToast: (id: string) => void;
+
+  // Guest Gate Modal
+  guestGateOpen: boolean;
+  guestGateReason: string;
+  openGuestGate: (reason?: string) => void;
+  closeGuestGate: () => void;
 }
 
 export const useTrackerStore = create<TrackerState>((set) => ({
@@ -46,6 +52,17 @@ export const useTrackerStore = create<TrackerState>((set) => ({
   selectedProblemId: null,
   setSelectedProblemId: (id) => set({ selectedProblemId: id }),
   
+  guestGateOpen: false,
+  guestGateReason: 'Sign in with Google to sync your progress, save personal notes, and connect your LeetCode account across devices.',
+  openGuestGate: (reason) =>
+    set({
+      guestGateOpen: true,
+      guestGateReason:
+        reason ||
+        'Sign in with Google to sync your progress, save personal notes, and connect your LeetCode account across devices.',
+    }),
+  closeGuestGate: () => set({ guestGateOpen: false }),
+
   toasts: [],
   addToast: (message, type) => {
     const id = Math.random().toString(36).substring(2, 9);

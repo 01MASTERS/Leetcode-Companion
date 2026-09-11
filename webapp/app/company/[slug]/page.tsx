@@ -17,7 +17,7 @@ export default function CompanyPage() {
   const slug = params.slug as string;
   const queryClient = useQueryClient();
   
-  const { globalSearch, setGlobalSearch, setSelectedProblemId, addToast } = useTrackerStore();
+  const { globalSearch, setGlobalSearch, setSelectedProblemId, addToast, openGuestGate } = useTrackerStore();
   
   // Local page filters
   const [difficultyFilter, setDifficultyFilter] = useState<'all' | 'Easy' | 'Medium' | 'Hard'>('all');
@@ -78,7 +78,9 @@ export default function CompanyPage() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'Failed to update solved status');
+        const err: any = new Error(data.error || 'Failed to update solved status');
+        err.isGuest = data.isGuest || res.status === 401;
+        throw err;
       }
       return res.json();
     },
@@ -90,7 +92,11 @@ export default function CompanyPage() {
       addToast(variables.solved ? 'Verified with LeetCode & marked as solved! 🎉' : 'Marked problem as unsolved', 'success');
     },
     onError: (err: any) => {
-      addToast(err.message || 'Failed to update solved status', 'error');
+      if (err.isGuest || err.message?.includes('Sign in with Google')) {
+        openGuestGate('Sign in with Google to sync and track your solved problems across devices.');
+      } else {
+        addToast(err.message || 'Failed to update solved status', 'error');
+      }
     },
   });
 

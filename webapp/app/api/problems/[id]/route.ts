@@ -33,9 +33,11 @@ export async function GET(
           },
         },
       }),
-      prisma.userProblemProgress.findUnique({
-        where: { userId_problemId: { userId, problemId: id } },
-      }),
+      userId
+        ? prisma.userProblemProgress.findUnique({
+            where: { userId_problemId: { userId, problemId: id } },
+          })
+        : Promise.resolve(null),
     ]);
 
     if (!problem) {
@@ -169,6 +171,13 @@ export async function PATCH(
     }
 
     const userId = await getCurrentUserId();
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Sign in with Google to save notes, bookmarks, and solve status across devices.', isGuest: true },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     const { solved, bookmarked, notes } = body;
 
