@@ -7,7 +7,7 @@ import Navbar from '@/components/Navbar';
 import ToastContainer from '@/components/ToastContainer';
 import ProblemModal from '@/components/ProblemModal';
 import GuestGateModal from '@/components/GuestGateModal';
-// import { Agentation } from "agentation";
+import { Agentation } from "agentation";
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -65,7 +65,7 @@ export default function RootLayout({
           <GuestGateModal />
           <ToastContainer />
         </Providers>
-          {/* {process.env.NODE_ENV === "development" && <Agentation />} */}
+        {process.env.NODE_ENV === "development" && <Agentation />}
       </body>
     </html>
   );
