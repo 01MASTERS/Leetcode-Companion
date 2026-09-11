@@ -135,11 +135,15 @@ Display exactly when the website's question dataset was last synchronized from t
 
 #### Technical Specifications
 1. **Global Catalog Freshness Banner**:
-   * Positioned cleanly at the top of the dashboard or header:
-     * e.g., `⚡ Question Catalog Synced: Yesterday, 10:30 PM (upstream commit #e095c25)`.
-   * Clicking the banner opens a **Catalog Timeline Modal**:
-     * Displays recent upstream sync events.
-     * Shows which companies were updated and how many problems were added or refreshed.
+   * **Compact & Minimalist Display**: Kept intentionally short, clean, and unobtrusive in the header/topbar:
+     * e.g., `⚡ Questions updated: Yesterday` or `⚡ Questions updated: 2 days ago` / `Last week` / `Last month` (relative time).
+   * **Interactive Hover Tooltip / Popover**:
+     * Hovering over the badge reveals a sleek glassmorphic card with exact details:
+       * **Exact Date & Time**: e.g., `Sep 10, 2026, 10:30 PM UTC`
+       * **Upstream Commit**: `e095c25` (clickable link to upstream commit)
+       * **Summary**: `12 companies refreshed, 45 questions updated`
+   * Clicking the banner opens the full **Catalog Timeline Modal** showing complete sync logs and history.
+
 2. **Per-Company Last Updated Indicator**:
    * On the company problem page (`/company/[slug]`), show a subtle freshness badge:
      * e.g., `Updated: Last 30 Days (via upstream sync)`.
