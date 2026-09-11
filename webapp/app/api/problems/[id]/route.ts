@@ -1,0 +1,304 @@
+import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+
+// GET problem details with companies featuring it
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const id = parseInt((await params).id);
+    if (isNaN(id)) {
+      return NextResponse.json({ error: 'Invalid problem ID' }, { status: 400 });
+    }
+
+    const problem = await prisma.problem.findUnique({
+      where: { id },
+      include: {
+        companies: {
+          select: {
+            frequency: true,
+            company: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!problem) {
+      return NextResponse.json({ error: 'Problem not found' }, { status: 404 });
+    }
+
+    // Format companies list
+    const companies = problem.companies.map(cp => ({
+      id: cp.company.id,
+      name: cp.company.name,
+      slug: cp.company.slug,
+      frequency: cp.frequency,
+    })).sort((a, b) => b.frequency - a.frequency);
+
+    return NextResponse.json({
+      id: problem.id,
+      title: problem.title,
+      url: problem.url,
+      difficulty: problem.difficulty,
+      solved: problem.solved,
+      solvedAt: problem.solvedAt,
+      notes: problem.notes || '',
+      bookmarked: problem.bookmarked,
+      companies,
+    });
+  } catch (error: any) {
+    console.error('Error fetching problem details:', error);
+    return NextResponse.json({ error: 'Internal Server Error', details: error.message }, { status: 500 });
+  }
+}
+
+// Helper to verify if a problem is solved on LeetCode
+async function verifyProblemSolvedOnLeetCode(
+  username: string,
+  cookie: string | undefined,
+  titleSlug: string
+): Promise<{ verified: boolean; reason?: string; solvedAt?: Date }> {
+  // 1. If cookie is available, check authenticated question status
+  if (cookie && cookie.trim()) {
+    try {
+      const query = `
+        query questionData($titleSlug: String!) {
+          question(titleSlug: $titleSlug) {
+            status
+          }
+        }
+      `;
+      const res = await fetch('https://leetcode.com/graphql', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cookie': `LEETCODE_SESSION=${cookie.trim()}`,
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        },
+        body: JSON.stringify({ query, variables: { titleSlug } }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        const status = json.data?.question?.status;
+        if (status === 'ac') {
+          return { verified: true, solvedAt: new Date() };
+        } else if (status !== null) {
+          return {
+            verified: false,
+            reason: `LeetCode shows this problem has status "${status || 'unsolved'}", not Accepted (AC).`,
+          };
+        }
+      }
+    } catch (e: any) {
+      console.warn('Authenticated check error:', e.message);
+    }
+  }
+
+  // 2. Check public recent accepted submissions (works without cookie)
+  if (username && username.trim()) {
+    try {
+      const query = `
+        query recentAcSubmissions($username: String!, $limit: Int!) {
+          recentAcSubmissionList(username: $username, limit: $limit) {
+            titleSlug
+            timestamp
+          }
+        }
+      `;
+      const res = await fetch('https://leetcode.com/graphql', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        },
+        body: JSON.stringify({ query, variables: { username: username.trim(), limit: 20 } }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        const subs = json.data?.recentAcSubmissionList || [];
+        const match = subs.find((s: any) => s.titleSlug === titleSlug);
+        if (match) {
+          const ts = parseInt(match.timestamp);
+          return {
+            verified: true,
+            solvedAt: !isNaN(ts) ? new Date(ts * 1000) : new Date(),
+          };
+        }
+      }
+    } catch (e: any) {
+      console.warn('Recent submissions check error:', e.message);
+    }
+  }
+
+  // If not found in recent submissions and no valid session cookie
+  if (!cookie || !cookie.trim()) {
+    return {
+      verified: false,
+      reason: `Could not verify on LeetCode: This question was not found in your 20 most recent submissions. To verify older solutions, please add your LEETCODE_SESSION cookie in Settings.`,
+    };
+  }
+
+  return {
+    verified: false,
+    reason: `This problem has not been solved on LeetCode by user "${username}".`,
+  };
+}
+
+// PATCH update problem status
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const id = parseInt((await params).id);
+    if (isNaN(id)) {
+      return NextResponse.json({ error: 'Invalid problem ID' }, { status: 400 });
+    }
+
+    const body = await request.json();
+    const { solved, bookmarked, notes } = body;
+
+    // Check if problem exists
+    const existingProblem = await prisma.problem.findUnique({
+      where: { id },
+    });
+
+    if (!existingProblem) {
+      return NextResponse.json({ error: 'Problem not found' }, { status: 404 });
+    }
+
+    const dataToUpdate: any = {};
+    let solvedStateChanged = false;
+    let newSolvedState = false;
+
+    if (solved !== undefined) {
+      if (solved) {
+        // Verify with LeetCode before marking as solved
+        const config = await prisma.syncConfig.findUnique({ where: { id: 1 } });
+        const isSimulation = config?.isDemoMode ||
+          config?.leetcodeUser?.toLowerCase() === 'demo' ||
+          config?.leetcodeUser?.toLowerCase() === 'simulation';
+
+        if (!isSimulation) {
+          if (!config?.leetcodeUser) {
+            return NextResponse.json(
+              { error: 'Please set your LeetCode username in Settings before marking problems as solved.' },
+              { status: 400 }
+            );
+          }
+
+          const verification = await verifyProblemSolvedOnLeetCode(
+            config.leetcodeUser,
+            config.leetcodeSession,
+            existingProblem.titleSlug
+          );
+
+          if (!verification.verified) {
+            return NextResponse.json(
+              { error: verification.reason || 'Verification failed on LeetCode.' },
+              { status: 400 }
+            );
+          }
+
+          dataToUpdate.solvedAt = verification.solvedAt || existingProblem.solvedAt || new Date();
+        } else {
+          dataToUpdate.solvedAt = existingProblem.solvedAt || new Date();
+        }
+
+        dataToUpdate.solved = true;
+        dataToUpdate.solvedViaDemo = false;
+        if (!existingProblem.solved) {
+          solvedStateChanged = true;
+          newSolvedState = true;
+        }
+      } else {
+        // Un-marking solved
+        dataToUpdate.solved = false;
+        dataToUpdate.solvedAt = null;
+        dataToUpdate.solvedViaDemo = false;
+        if (existingProblem.solved) {
+          solvedStateChanged = true;
+          newSolvedState = false;
+        }
+      }
+    }
+
+    if (bookmarked !== undefined) {
+      dataToUpdate.bookmarked = bookmarked;
+    }
+
+    if (notes !== undefined) {
+      dataToUpdate.notes = notes;
+    }
+
+    // Perform transaction to update problem, log activity, and update streak
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Update the problem
+      const updated = await tx.problem.update({
+        where: { id },
+        data: dataToUpdate,
+      });
+
+      // 2. If solved state changed, log activity and calculate streak
+      if (solvedStateChanged) {
+        await tx.activityLog.create({
+          data: {
+            problemId: id,
+            action: newSolvedState ? 'SOLVED' : 'UNSOLVED',
+          },
+        });
+
+        if (newSolvedState) {
+          // Increment/update streak
+          const stats = await tx.userStats.findUnique({ where: { id: 1 } });
+          const todayStr = new Date().toLocaleDateString('sv-SE'); // YYYY-MM-DD
+          
+          if (stats) {
+            let newStreak = stats.streak;
+            const lastSolved = stats.lastSolvedDate;
+
+            if (!lastSolved) {
+              newStreak = 1;
+            } else if (lastSolved === todayStr) {
+              // Already solved today
+            } else {
+              // Check if lastSolved was yesterday
+              const lastSolvedDateObj = new Date(lastSolved);
+              const todayDateObj = new Date(todayStr);
+              const diffTime = Math.abs(todayDateObj.getTime() - lastSolvedDateObj.getTime());
+              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+              
+              if (diffDays === 1) {
+                newStreak += 1;
+              } else {
+                newStreak = 1;
+              }
+            }
+
+            await tx.userStats.update({
+              where: { id: 1 },
+              data: {
+                streak: newStreak,
+                lastSolvedDate: todayStr,
+              },
+            });
+          }
+        }
+      }
+
+      return updated;
+    });
+
+    return NextResponse.json(result);
+  } catch (error: any) {
+    console.error('Error updating problem:', error);
+    return NextResponse.json({ error: 'Internal Server Error', details: error.message }, { status: 500 });
+  }
+}
