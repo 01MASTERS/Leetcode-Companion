@@ -199,17 +199,20 @@ Even with client-side guards, users could open multiple browser tabs simultaneou
      ```
    - **The Impact:** Reduces rows transferred from Supabase to Vercel by **99.6%** (from 15,000+ rows down to 60 rows), dropping query execution time to **< 150 ms**.
 
-2. **Edge CDN Caching for Problem Details Modal (`/api/problems/[id]`):**
-   - Public problem details (metadata, difficulty, company frequency list) are now cached at Vercel Edge for **1 hour** (`public, s-maxage=3600, stale-while-revalidate=86400`) for guest visitors.
-   - Reduces problem modal opening latency from **2,204 ms** down to **< 100 ms**.
+2. **URL-Partitioned Edge CDN Caching (`?guest=1`) & Cache Isolation:**
+   - **The Multi-Tenant CDN Problem:** When routes return personalized user progress (`solved: true`, personal notes, bookmarks) for signed-in users, caching guest responses under the default URL risks Edge CDN cache poisoning—where a logged-in user hitting the same URL receives a cached guest response with 0 solved questions.
+   - **The URL Partitioning Fix:** Public catalog caching is strictly partitioned by the `?guest=1` query parameter and backed by `Vary: Cookie`:
+     - Guests request: `/api/companies?guest=1`, `/api/companies/[slug]?guest=1`, `/api/problems/[id]?guest=1`, `/api/stats?guest=1` $\rightarrow$ Cached at Edge CDN for 1 hour (`< 50 ms`).
+     - Signed-in users request without `?guest=1` $\rightarrow$ Completely bypasses the guest Edge cache, directly returning private, real-time user solve states with `Cache-Control: private, no-cache, no-store, must-revalidate`.
+   - **Result:** Guests enjoy sub-50ms instant edge responses, while authenticated users are guaranteed 100% fresh, personalized progress with zero cross-session cache leakage.
 
-3. **Correction of `/api/stats` Edge Cache Header:**
-   - Fixed a discrepancy where the guest stats route sent `private, no-cache, must-revalidate` despite intending to cache at the edge.
-   - Now properly cached at the edge for 5 minutes (`public, s-maxage=300, stale-while-revalidate=600`), avoiding 5 separate count queries per visit and slashing latency from **1,410 ms** to **< 50 ms**.
-
-4. **Edge CDN Caching & Pruned Queries in `/api/catalog/sync-status`:**
+3. **Edge CDN Caching & Pruned Queries in `/api/catalog/sync-status`:**
    - Added `public, s-maxage=600, stale-while-revalidate=1800` and short-circuited redundant `prisma.company.count()` and `prisma.problem.count()` queries when `latestSync` already stores the catalog totals.
    - Eliminates a blocking **3,280 ms** background call on every page load.
+
+4. **Relaxed Idle Auto-Sync and Polling Intervals (10 Minutes):**
+   - Active interval polling in `Navbar.tsx` and `Sidebar.tsx` relaxed from 60 seconds to 10 minutes when sitting idle in the tab.
+   - Event-driven listeners (`window.focus`, `document.visibilitychange`) retain instant auto-sync the moment a user returns from solving on LeetCode.
 
 ---
 

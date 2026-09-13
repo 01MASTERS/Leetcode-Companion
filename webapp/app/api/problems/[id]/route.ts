@@ -52,10 +52,17 @@ export async function GET(
       frequency: cp.frequency,
     })).sort((a, b) => b.frequency - a.frequency);
 
-    const headers: Record<string, string> = {};
-    if (!userId) {
+    const { searchParams } = new URL(request.url);
+    const isGuestParam = searchParams.get('guest') === '1';
+
+    const headers: Record<string, string> = {
+      'Vary': 'Cookie',
+    };
+    if (!userId && isGuestParam) {
+      // Guest problem details partitioned by ?guest=1; safe to cache at Edge CDN without poisoning authenticated sessions
       headers['Cache-Control'] = 'public, s-maxage=3600, stale-while-revalidate=86400';
     } else {
+      // Authenticated user data or unpartitioned requests must never be publicly cached
       headers['Cache-Control'] = 'private, no-cache, no-store, must-revalidate';
     }
 

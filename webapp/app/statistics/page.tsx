@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useSession } from 'next-auth/react';
 import { Stats } from '@/types';
 import { formatDate } from '@/utils/helpers';
 import { BarChart3, Trophy, Flame, Calendar, CircleDot, ChevronRight, Activity, TrendingUp, Star } from 'lucide-react';
@@ -11,12 +12,14 @@ import AnimatedList from '@/components/AnimatedList';
 
 export default function StatisticsPage() {
   const { setSelectedProblemId } = useTrackerStore();
+  const { status } = useSession();
+  const isGuest = status !== 'authenticated';
 
   // Fetch statistics
   const { data: stats, isLoading, error } = useQuery<Stats>({
-    queryKey: ['stats'],
+    queryKey: ['stats', { isGuest }],
     queryFn: async () => {
-      const res = await fetch('/api/stats');
+      const res = await fetch(`/api/stats${isGuest ? '?guest=1' : ''}`);
       if (!res.ok) throw new Error('Failed to load stats');
       return res.json();
     },
