@@ -22,7 +22,7 @@ export default function Sidebar() {
       if (!res.ok) throw new Error('Failed to fetch stats');
       return res.json();
     },
-    refetchInterval: 60000,
+    refetchInterval: 1000 * 60 * 10, // 10 minutes
   });
 
   const leetcodeUser = stats?.syncConfig?.leetcodeUser;
