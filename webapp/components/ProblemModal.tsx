@@ -28,7 +28,7 @@ interface ProblemDetail {
 export default function ProblemModal() {
   const queryClient = useQueryClient();
   const { status } = useSession();
-  const isGuest = status !== 'authenticated';
+  const isGuest = status === 'unauthenticated';
   const { selectedProblemId, setSelectedProblemId, addToast, openGuestGate } = useTrackerStore();
   const [notesText, setNotesText] = useState('');
   const [isSavingNotes, setIsSavingNotes] = useState(false);
@@ -42,7 +42,7 @@ export default function ProblemModal() {
       if (!res.ok) throw new Error('Problem not found');
       return res.json();
     },
-    enabled: !!selectedProblemId,
+    enabled: !!selectedProblemId && status !== 'loading',
   });
 
   // Sync state notes when data is loaded

@@ -13,7 +13,7 @@ import AnimatedList from '@/components/AnimatedList';
 export default function StatisticsPage() {
   const { setSelectedProblemId } = useTrackerStore();
   const { status } = useSession();
-  const isGuest = status !== 'authenticated';
+  const isGuest = status === 'unauthenticated';
 
   // Fetch statistics
   const { data: stats, isLoading, error } = useQuery<Stats>({
@@ -23,6 +23,7 @@ export default function StatisticsPage() {
       if (!res.ok) throw new Error('Failed to load stats');
       return res.json();
     },
+    enabled: status !== 'loading',
   });
 
   if (isLoading) {

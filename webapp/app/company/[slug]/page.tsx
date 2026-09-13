@@ -18,7 +18,7 @@ export default function CompanyPage() {
   const slug = params.slug as string;
   const queryClient = useQueryClient();
   const { status } = useSession();
-  const isGuest = status !== 'authenticated';
+  const isGuest = status === 'unauthenticated';
   
   const { globalSearch, setGlobalSearch, setSelectedProblemId, addToast, openGuestGate } = useTrackerStore();
   
@@ -39,6 +39,7 @@ export default function CompanyPage() {
       if (!res.ok) throw new Error('Company not found');
       return res.json();
     },
+    enabled: status !== 'loading',
   });
 
   // Reset page whenever search, filters, or page size change

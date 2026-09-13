@@ -15,7 +15,7 @@ export default function Sidebar() {
   const { status } = useSession();
   const { sidebarOpen, toggleSidebar, mobileSidebarOpen, setMobileSidebarOpen } = useTrackerStore();
 
-  const isGuest = status !== 'authenticated';
+  const isGuest = status === 'unauthenticated';
 
   const { data: stats } = useQuery<Stats>({
     queryKey: ['stats', { isGuest }],
@@ -24,6 +24,7 @@ export default function Sidebar() {
       if (!res.ok) throw new Error('Failed to fetch stats');
       return res.json();
     },
+    enabled: status !== 'loading',
     refetchInterval: 1000 * 60 * 10, // 10 minutes
   });
 
