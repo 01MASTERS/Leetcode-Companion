@@ -9,6 +9,7 @@ import { Company, Stats } from '@/types';
 import { Trophy, Flame, CheckCircle, TrendingUp, HelpCircle, ChevronRight, Play, ChevronDown, Check } from 'lucide-react';
 import { formatPercent } from '@/utils/helpers';
 import { motion } from 'framer-motion';
+import { useGuestProgress } from '@/lib/guest-storage';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -54,11 +55,26 @@ export default function Dashboard() {
     setPage(1);
   }, [globalSearch, dashboardSort, dashboardFilter]);
 
+  const guestProgress = useGuestProgress();
+  const guestSolvedIds = React.useMemo(() => {
+    if (!isGuest) return '';
+    return Object.entries(guestProgress)
+      .filter(([_, p]) => p.solved)
+      .map(([id]) => id)
+      .sort((a, b) => Number(a) - Number(b))
+      .join(',');
+  }, [isGuest, guestProgress]);
+
   // Fetch global metrics
   const { data: stats } = useQuery<Stats>({
-    queryKey: ['stats', { isGuest }],
+    queryKey: ['stats', { isGuest, guestSolvedIds }],
     queryFn: async () => {
-      const res = await fetch(`/api/stats${isGuest ? '?guest=1' : ''}`);
+      const params = new URLSearchParams();
+      if (isGuest) {
+        params.append('guest', '1');
+        if (guestSolvedIds) params.append('solved', guestSolvedIds);
+      }
+      const res = await fetch(`/api/stats?${params.toString()}`);
       if (!res.ok) throw new Error('Failed to load stats');
       return res.json();
     },
@@ -78,9 +94,11 @@ export default function Dashboard() {
     staleTime: 1000 * 60 * 60, // 1 hour Edge CDN / client cache
   });
 
+  const displayStats = stats;
+
   // Fetch companies with query variables
   const { data: userCompanies, isLoading } = useQuery<Company[]>({
-    queryKey: ['companies', { search: globalSearch, filter: dashboardFilter, sort: dashboardSort, page, isGuest }],
+    queryKey: ['companies', { search: globalSearch, filter: dashboardFilter, sort: dashboardSort, page, isGuest, guestSolvedIds }],
     queryFn: async () => {
       const params = new URLSearchParams({
         search: globalSearch,
@@ -91,13 +109,14 @@ export default function Dashboard() {
       });
       if (isGuest) {
         params.append('guest', '1');
+        if (guestSolvedIds) params.append('solved', guestSolvedIds);
       }
       const res = await fetch(`/api/companies?${params.toString()}`);
       if (!res.ok) throw new Error('Failed to load companies');
       return res.json();
     },
     enabled: status !== 'loading',
-    placeholderData: (previousData) => previousData || (page === 1 && !globalSearch && dashboardFilter === 'all' ? baseCatalog : undefined),
+    placeholderData: (previousData) => previousData || (page === 1 && !globalSearch && dashboardFilter === 'all' && !guestSolvedIds ? baseCatalog : undefined),
   });
 
   const companies = userCompanies || (page === 1 && !globalSearch && dashboardFilter === 'all' ? baseCatalog : undefined);
@@ -125,8 +144,9 @@ export default function Dashboard() {
         </div>
       </div>
 
+
       {/* KPI Cards */}
-      {stats && (
+      {displayStats && (
         <div id="tour-stats" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-5">
           {/* Total Solved */}
           <div className="glass border border-border hover:border-amber-500/50 hover:bg-amber-500/[0.04] hover:shadow-xl hover:shadow-amber-500/10 rounded-2xl p-4 sm:p-5 flex flex-col justify-between h-28 relative group overflow-hidden transition-all duration-300 hover:-translate-y-1">
@@ -136,8 +156,8 @@ export default function Dashboard() {
               <Trophy className="h-4.5 w-4.5 text-amber-600 dark:text-primary group-hover:scale-110 group-hover:rotate-6 transition-transform duration-300" />
             </div>
             <div>
-              <span className="text-2xl font-black text-foreground">{stats.overall?.solvedProblems ?? 0}</span>
-              <span className="text-xs text-muted-foreground ml-1.5">/ {stats.overall?.totalProblems ?? 0} ({(stats.overall?.completionPercentage ?? 0).toFixed(1)}%)</span>
+              <span className="text-2xl font-black text-foreground">{displayStats.overall?.solvedProblems ?? 0}</span>
+              <span className="text-xs text-muted-foreground ml-1.5">/ {displayStats.overall?.totalProblems ?? 0} ({(displayStats.overall?.completionPercentage ?? 0).toFixed(1)}%)</span>
             </div>
           </div>
 
@@ -149,8 +169,8 @@ export default function Dashboard() {
               <CheckCircle className="h-4.5 w-4.5 text-emerald-600 dark:text-emerald-500 group-hover:scale-110 group-hover:rotate-6 transition-transform duration-300" />
             </div>
             <div>
-              <span className="text-2xl font-black text-foreground">{stats.companies?.completed ?? 0}</span>
-              <span className="text-xs text-muted-foreground ml-1.5">/ {stats.companies?.total ?? 0}</span>
+              <span className="text-2xl font-black text-foreground">{displayStats.companies?.completed ?? 0}</span>
+              <span className="text-xs text-muted-foreground ml-1.5">/ {displayStats.companies?.total ?? 0}</span>
             </div>
           </div>
 
@@ -162,7 +182,7 @@ export default function Dashboard() {
               <TrendingUp className="h-4.5 w-4.5 text-blue-600 dark:text-blue-500 group-hover:scale-110 group-hover:-rotate-6 transition-transform duration-300" />
             </div>
             <div>
-              <span className="text-2xl font-black text-foreground">{stats.companies?.started ?? 0}</span>
+              <span className="text-2xl font-black text-foreground">{displayStats.companies?.started ?? 0}</span>
               <span className="text-xs text-muted-foreground ml-1.5">Companies</span>
             </div>
           </div>
@@ -175,7 +195,7 @@ export default function Dashboard() {
               <Flame className="h-4.5 w-4.5 text-orange-600 dark:text-orange-500 group-hover:scale-110 group-hover:rotate-12 transition-transform duration-300" />
             </div>
             <div>
-              <span className="text-2xl font-black text-foreground">{stats.streak ?? 0}</span>
+              <span className="text-2xl font-black text-foreground">{displayStats.streak ?? 0}</span>
               <span className="text-xs text-muted-foreground ml-1.5">Days</span>
             </div>
           </div>

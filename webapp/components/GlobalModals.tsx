@@ -8,6 +8,7 @@ const ProblemModal = dynamic(() => import('@/components/ProblemModal'), { ssr: f
 const GuestGateModal = dynamic(() => import('@/components/GuestGateModal'), { ssr: false });
 const SyncHistoryModal = dynamic(() => import('@/components/SyncHistoryModal'), { ssr: false });
 const OnboardingTour = dynamic(() => import('@/components/OnboardingTour'), { ssr: false });
+const GuestMigrator = dynamic(() => import('@/components/GuestMigrator'), { ssr: false });
 
 export default function GlobalModals() {
   return (
@@ -16,6 +17,7 @@ export default function GlobalModals() {
       <GuestGateModal />
       <SyncHistoryModal />
       <OnboardingTour />
+      <GuestMigrator />
     </>
   );
 }

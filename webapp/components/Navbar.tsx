@@ -355,15 +355,6 @@ export default function Navbar() {
           </div>
         ) : (
           <div className="flex items-center gap-2">
-            {/* Guest pill */}
-            <button
-              onClick={() => openGuestGate()}
-              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 border border-amber-200 rounded-full text-[11px] font-medium text-amber-800 hover:bg-amber-100 dark:bg-amber-500/10 dark:border-amber-500/20 dark:text-amber-400 dark:hover:bg-amber-500/20 transition-colors"
-            >
-              <span className="h-1.5 w-1.5 rounded-full bg-amber-600 dark:bg-amber-500 animate-pulse" />
-              Guest Mode
-            </button>
-
             {/* Sign in with Google Button */}
             <button
               onClick={() => signIn('google')}

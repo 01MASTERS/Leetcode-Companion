@@ -9,17 +9,46 @@ import { BarChart3, Trophy, Flame, Calendar, CircleDot, ChevronRight, Activity, 
 import { getDifficultyColor } from '@/utils/helpers';
 import { useTrackerStore } from '@/store/useTrackerStore';
 import AnimatedList from '@/components/AnimatedList';
+import { useGuestProgress } from '@/lib/guest-storage';
 
 export default function StatisticsPage() {
   const { setSelectedProblemId } = useTrackerStore();
   const { status } = useSession();
   const isGuest = status === 'unauthenticated';
+  const guestProgress = useGuestProgress();
+
+  const guestSolvedIds = React.useMemo(() => {
+    if (!isGuest) return '';
+    return Object.entries(guestProgress)
+      .filter(([_, p]) => p.solved)
+      .sort((a, b) => {
+        const timeA = a[1].solvedAt ? new Date(a[1].solvedAt).getTime() : 0;
+        const timeB = b[1].solvedAt ? new Date(b[1].solvedAt).getTime() : 0;
+        return timeB - timeA;
+      })
+      .map(([id]) => id)
+      .join(',');
+  }, [isGuest, guestProgress]);
+
+  const guestBookmarkedIds = React.useMemo(() => {
+    if (!isGuest) return '';
+    return Object.entries(guestProgress)
+      .filter(([_, p]) => p.bookmarked)
+      .map(([id]) => id)
+      .join(',');
+  }, [isGuest, guestProgress]);
 
   // Fetch statistics
   const { data: stats, isLoading, error } = useQuery<Stats>({
-    queryKey: ['stats', { isGuest }],
+    queryKey: ['stats', { isGuest, guestSolvedIds, guestBookmarkedIds }],
     queryFn: async () => {
-      const res = await fetch(`/api/stats${isGuest ? '?guest=1' : ''}`);
+      const params = new URLSearchParams();
+      if (isGuest) {
+        params.append('guest', '1');
+        if (guestSolvedIds) params.append('solved', guestSolvedIds);
+        if (guestBookmarkedIds) params.append('bookmarked', guestBookmarkedIds);
+      }
+      const res = await fetch(`/api/stats?${params.toString()}`);
       if (!res.ok) throw new Error('Failed to load stats');
       return res.json();
     },
@@ -54,7 +83,16 @@ export default function StatisticsPage() {
     );
   }
 
-  const { overall, difficulties, companies, todaySolvedCount, streak, recentActivity } = stats;
+  const { overall, difficulties, companies, streak, recentActivity } = stats;
+
+  const displayTodayCount = isGuest
+    ? Object.values(guestProgress).filter((p) => {
+        if (!p.solved || !p.solvedAt) return false;
+        const d = new Date(p.solvedAt);
+        const now = new Date();
+        return (now.getTime() - d.getTime()) < 24 * 60 * 60 * 1000;
+      }).length
+    : stats.todaySolvedCount;
 
   const difficultyItems = [
     {
@@ -128,7 +166,7 @@ export default function StatisticsPage() {
             <Calendar className="h-5 w-5 text-emerald-600 dark:text-emerald-500 group-hover:scale-110 group-hover:rotate-6 transition-transform duration-300" />
           </div>
           <div className="mt-2 relative z-10">
-            <span className="text-2xl sm:text-3xl font-black text-foreground">{todaySolvedCount}</span>
+            <span className="text-2xl sm:text-3xl font-black text-foreground">{displayTodayCount}</span>
             <span className="text-xs text-muted-foreground ml-1.5">Questions</span>
           </div>
           <div className="text-[10px] text-muted-foreground mt-1 relative z-10">Questions marked solved in last 24h</div>
@@ -198,33 +236,41 @@ export default function StatisticsPage() {
                 displayScrollbar={true}
                 showGradients={true}
                 enableArrowNavigation={true}
-                renderItem={(act, index, isSelected) => (
-                  <div
-                    className={`p-3 border rounded-xl flex items-center justify-between gap-3 transition-all duration-200 group ${
-                      isSelected
-                        ? 'bg-muted/80 border-primary/50 text-primary shadow-sm'
-                        : 'bg-muted/20 border-border hover:bg-muted/30 text-foreground'
-                    }`}
-                  >
-                    <div className="flex flex-col gap-1 min-w-0">
-                      <span className={`text-xs font-bold truncate transition-colors ${
-                        isSelected ? 'text-primary' : 'text-foreground group-hover:text-primary'
-                      }`}>
-                        {act.problemTitle}
-                      </span>
-                      <span className="text-[10px] text-muted-foreground font-medium">
-                        {formatDate(act.timestamp)}
-                      </span>
+                renderItem={(act, index, isSelected) => {
+                  const guestSolvedAt = isGuest ? guestProgress[act.problemId]?.solvedAt : null;
+                  const timestamp = guestSolvedAt || act.timestamp || new Date().toISOString();
+                  return (
+                    <div
+                      className={`p-3 border rounded-xl flex items-center justify-between gap-3 transition-all duration-200 group ${
+                        isSelected
+                          ? 'bg-muted/80 border-primary/50 text-primary shadow-sm'
+                          : 'bg-muted/20 border-border hover:bg-muted/30 text-foreground'
+                      }`}
+                    >
+                      <div className="flex flex-col gap-1 min-w-0">
+                        <span className={`text-xs font-bold truncate transition-colors ${
+                          isSelected ? 'text-primary' : 'text-foreground group-hover:text-primary'
+                        }`}>
+                          {act.problemTitle}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground font-medium">
+                          {formatDate(timestamp)}
+                        </span>
+                      </div>
+                      <ChevronRight className={`h-4 w-4 transition-colors flex-shrink-0 ${
+                        isSelected ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'
+                      }`} />
                     </div>
-                    <ChevronRight className={`h-4 w-4 transition-colors flex-shrink-0 ${
-                      isSelected ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'
-                    }`} />
-                  </div>
-                )}
+                  );
+                }}
               />
             ) : (
               <div className="h-full flex flex-col items-center justify-center text-center p-8 text-muted-foreground text-xs select-none">
-                <span>No problems solved recently. Sync your LeetCode profile to see activity.</span>
+                <span>
+                  {isGuest
+                    ? 'No problems solved yet. Mark problems as solved to see your activity.'
+                    : 'No problems solved recently. Sync your LeetCode profile to see activity.'}
+                </span>
               </div>
             )}
           </div>

@@ -20,6 +20,7 @@ export interface Problem {
   url: string;
   difficulty: string;
   solved: boolean;
+  isManual?: boolean;
   notes: string;
   bookmarked: boolean;
   frequency: number;

@@ -19,22 +19,119 @@ export async function GET(request: Request) {
       prisma.company.count(),
     ]);
 
+    const solvedParam = searchParams.get('solved') || request.headers.get('x-guest-solved');
+    const guestSolvedIds = !userId && solvedParam
+      ? solvedParam.split(',').map(Number).filter(n => Number.isInteger(n) && n > 0)
+      : [];
+
+    const bookmarkedParam = searchParams.get('bookmarked') || request.headers.get('x-guest-bookmarked');
+    const guestBookmarkedIds = !userId && bookmarkedParam
+      ? bookmarkedParam.split(',').map(Number).filter(n => Number.isInteger(n) && n > 0)
+      : [];
+
     if (!userId) {
+      let guestSolvedProblems = guestSolvedIds.length;
+      let guestEasySolved = 0;
+      let guestMediumSolved = 0;
+      let guestHardSolved = 0;
+      let guestCompletedCompanies = 0;
+      let guestStartedCompanies = 0;
+      let guestRecentActivity: any[] = [];
+      let guestBookmarkedProblems: any[] = [];
+
+      if (guestSolvedIds.length > 0) {
+        const guestIdList = guestSolvedIds.join(',');
+        const difficultyCounts = await prisma.$queryRawUnsafe<{ difficulty: string; count: bigint }[]>(`
+          SELECT difficulty, COUNT(id)::bigint as count
+          FROM "Problem"
+          WHERE id IN (${guestIdList})
+          GROUP BY difficulty
+        `);
+        for (const dc of difficultyCounts) {
+          if (dc.difficulty === 'Easy') guestEasySolved = Number(dc.count);
+          if (dc.difficulty === 'Medium') guestMediumSolved = Number(dc.count);
+          if (dc.difficulty === 'Hard') guestHardSolved = Number(dc.count);
+        }
+
+        const companyProgressCounts = await prisma.$queryRawUnsafe<{ solved_count: bigint; total_count: bigint }[]>(`
+          WITH user_solved AS (
+            SELECT cp."companyId", COUNT(cp."problemId")::bigint as solved_count
+            FROM "CompanyProblem" cp
+            WHERE cp."problemId" IN (${guestIdList})
+            GROUP BY cp."companyId"
+          ),
+          company_totals AS (
+            SELECT "companyId", COUNT("problemId")::bigint as total_count
+            FROM "CompanyProblem"
+            GROUP BY "companyId"
+          )
+          SELECT 
+            us.solved_count,
+            ct.total_count
+          FROM user_solved us
+          JOIN company_totals ct ON us."companyId" = ct."companyId"
+        `);
+        for (const cp of companyProgressCounts) {
+          const s = Number(cp.solved_count);
+          const t = Number(cp.total_count);
+          if (s > 0) {
+            guestStartedCompanies++;
+            if (s >= t) {
+              guestCompletedCompanies++;
+            }
+          }
+        }
+
+        const solvedProblemsRows = await prisma.problem.findMany({
+          where: { id: { in: guestSolvedIds } },
+          select: { id: true, title: true, difficulty: true },
+        });
+        const solvedMap = new Map(solvedProblemsRows.map(p => [p.id, p]));
+        guestRecentActivity = guestSolvedIds
+          .map(id => {
+            const prob = solvedMap.get(id);
+            if (!prob) return null;
+            return {
+              id: prob.id,
+              problemId: prob.id,
+              problemTitle: prob.title,
+              difficulty: prob.difficulty,
+              timestamp: new Date().toISOString(),
+            };
+          })
+          .filter(Boolean);
+      }
+
+      if (guestBookmarkedIds.length > 0) {
+        const bookmarkedProblemsRows = await prisma.problem.findMany({
+          where: { id: { in: guestBookmarkedIds } },
+          select: { id: true, title: true, difficulty: true, url: true },
+        });
+        guestBookmarkedProblems = bookmarkedProblemsRows.map(p => ({
+          id: p.id,
+          title: p.title,
+          difficulty: p.difficulty,
+          solved: guestSolvedIds.includes(p.id),
+          url: p.url,
+          updatedAt: new Date().toISOString(),
+        }));
+      }
+
       const overall = {
         totalProblems,
-        solvedProblems: 0,
-        remainingProblems: totalProblems,
-        completionPercentage: 0,
+        solvedProblems: guestSolvedProblems,
+        remainingProblems: Math.max(0, totalProblems - guestSolvedProblems),
+        completionPercentage: totalProblems > 0 ? (guestSolvedProblems / totalProblems) * 100 : 0,
       };
       const difficulties = {
-        easy: { solved: 0, total: easyTotal },
-        medium: { solved: 0, total: mediumTotal },
-        hard: { solved: 0, total: hardTotal },
+        easy: { solved: guestEasySolved, total: easyTotal },
+        medium: { solved: guestMediumSolved, total: mediumTotal },
+        hard: { solved: guestHardSolved, total: hardTotal },
       };
       const companies = {
         total: totalCompanies,
-        completed: 0,
-        started: 0,
+        completed: guestCompletedCompanies,
+        started: guestStartedCompanies,
       };
       const syncConfigData = {
         leetcodeUser: '',
@@ -43,15 +140,13 @@ export async function GET(request: Request) {
         hasSessionCookie: false,
       };
 
-      // Guest Mode Stats Response (cached at Edge CDN for 5 minutes)
+      // Guest Mode Stats Response (cached at Edge CDN for 5 minutes only if empty)
       const headers: Record<string, string> = {
         'Vary': 'Cookie',
       };
-      if (isGuestParam) {
-        // Guest stats response partitioned by ?guest=1; safe to cache at Edge CDN without poisoning authenticated sessions
+      if (isGuestParam && guestSolvedIds.length === 0 && guestBookmarkedIds.length === 0) {
         headers['Cache-Control'] = 'public, s-maxage=300, stale-while-revalidate=600';
       } else {
-        // Unpartitioned requests must never be publicly cached
         headers['Cache-Control'] = 'private, no-cache, no-store, must-revalidate';
       }
 
@@ -61,15 +156,15 @@ export async function GET(request: Request) {
         companies,
         streak: 0,
         todaySolvedCount: 0,
-        recentActivity: [],
-        bookmarkedProblems: [],
-        bookmarkedCount: 0,
+        recentActivity: guestRecentActivity,
+        bookmarkedProblems: guestBookmarkedProblems,
+        bookmarkedCount: guestBookmarkedProblems.length,
         syncConfig: syncConfigData,
         // Flat aliases for backwards compatibility
         totalProblems,
-        solvedProblems: 0,
-        remainingProblems: totalProblems,
-        completionPercentage: 0,
+        solvedProblems: guestSolvedProblems,
+        remainingProblems: overall.remainingProblems,
+        completionPercentage: overall.completionPercentage,
         difficultyBreakdown: difficulties,
         companyStats: companies,
         syncStatus: syncConfigData,

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUserId } from '@/lib/auth-helper';
+import { decryptCookie } from '@/lib/encryption';
 
 // GET problem details with companies featuring it
 export async function GET(
@@ -73,6 +74,7 @@ export async function GET(
       difficulty: problem.difficulty,
       solved: progress?.solved || false,
       solvedAt: progress?.solvedAt || null,
+      isManual: progress?.isManual || false,
       notes: progress?.notes || '',
       bookmarked: progress?.bookmarked || false,
       companies,
@@ -90,8 +92,10 @@ async function verifyProblemSolvedOnLeetCode(
   cookie: string | undefined,
   titleSlug: string
 ): Promise<{ verified: boolean; reason?: string; solvedAt?: Date }> {
+  const cleanCookie = cookie ? decryptCookie(cookie.trim()) : '';
+
   // 1. If cookie is available, check authenticated question status
-  if (cookie && cookie.trim()) {
+  if (cleanCookie) {
     try {
       const query = `
         query questionData($titleSlug: String!) {
@@ -104,10 +108,11 @@ async function verifyProblemSolvedOnLeetCode(
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Cookie': `LEETCODE_SESSION=${cookie.trim()}`,
+          'Cookie': `LEETCODE_SESSION=${cleanCookie}`,
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         },
         body: JSON.stringify({ query, variables: { titleSlug } }),
+        signal: AbortSignal.timeout(2000),
       });
       if (res.ok) {
         const json = await res.json();
@@ -144,6 +149,7 @@ async function verifyProblemSolvedOnLeetCode(
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         },
         body: JSON.stringify({ query, variables: { username, limit: 20 } }),
+        signal: AbortSignal.timeout(2000),
       });
 
       if (res.ok) {
@@ -216,30 +222,31 @@ export async function PATCH(
 
     if (solved !== undefined) {
       if (solved) {
-        // Verify with LeetCode before marking as solved
+        let isVerified = false;
+        let verifiedDate: Date | undefined;
+
+        // Optionally check verification if user has configured LeetCode
         const config = await prisma.userSyncConfig.findUnique({ where: { userId } });
-        if (!config?.leetcodeUser) {
-          return NextResponse.json(
-            { error: 'Please set your LeetCode username in Settings before marking problems as solved.' },
-            { status: 400 }
-          );
+        if (config?.leetcodeUser) {
+          try {
+            const verification = await verifyProblemSolvedOnLeetCode(
+              config.leetcodeUser,
+              config.leetcodeSession,
+              existingProblem.titleSlug
+            );
+            if (verification.verified) {
+              isVerified = true;
+              verifiedDate = verification.solvedAt;
+            }
+          } catch (e: any) {
+            console.warn('Verification check failed, falling back to manual solve:', e.message);
+          }
         }
 
-          const verification = await verifyProblemSolvedOnLeetCode(
-            config.leetcodeUser,
-            config.leetcodeSession,
-            existingProblem.titleSlug
-          );
-
-          if (!verification.verified) {
-            return NextResponse.json(
-              { error: verification.reason || 'Verification failed on LeetCode.' },
-              { status: 400 }
-            );
-          }
-
-          dataToUpdate.solvedAt = verification.solvedAt || existingProgress?.solvedAt || new Date();
         dataToUpdate.solved = true;
+        dataToUpdate.isManual = !isVerified;
+        dataToUpdate.solvedAt = verifiedDate || existingProgress?.solvedAt || new Date();
+
         if (!existingProgress?.solved) {
           solvedStateChanged = true;
           newSolvedState = true;
@@ -248,6 +255,7 @@ export async function PATCH(
         // Un-marking solved
         dataToUpdate.solved = false;
         dataToUpdate.solvedAt = null;
+        dataToUpdate.isManual = false;
         if (existingProgress?.solved) {
           solvedStateChanged = true;
           newSolvedState = false;
@@ -279,6 +287,7 @@ export async function PATCH(
           problemId: id,
           solved: dataToUpdate.solved || false,
           solvedAt: dataToUpdate.solvedAt || null,
+          isManual: dataToUpdate.isManual ?? false,
           bookmarked: dataToUpdate.bookmarked || false,
           notes: dataToUpdate.notes || '',
         },
@@ -346,6 +355,7 @@ export async function PATCH(
       url: existingProblem.url,
       difficulty: existingProblem.difficulty,
       solved: result.solved,
+      isManual: result.isManual,
       solvedAt: result.solvedAt,
       notes: result.notes,
       bookmarked: result.bookmarked,

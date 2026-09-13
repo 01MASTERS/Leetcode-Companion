@@ -24,6 +24,11 @@ export async function GET(request: Request) {
     const offset = (page - 1) * limit;
     const userId = await getCurrentUserId();
 
+    const solvedParam = searchParams.get('solved') || request.headers.get('x-guest-solved');
+    const guestSolvedIds = !userId && solvedParam
+      ? solvedParam.split(',').map(Number).filter(n => Number.isInteger(n) && n > 0)
+      : [];
+
     const searchPattern = search ? `%${search}%` : '%';
 
     let companiesRaw: CompanyRawRow[] = [];
@@ -79,8 +84,60 @@ export async function GET(request: Request) {
         ${orderByClause}
         LIMIT $3 OFFSET $4
       `, userId, searchPattern, limit, offset);
+    } else if (guestSolvedIds.length > 0) {
+      // Guest with local solved problem IDs: aggregate per-company progress dynamically
+      const guestIdList = guestSolvedIds.join(',');
+
+      let orderByClause = 'ORDER BY "completionPercentage" DESC, "solvedProblems" DESC, c.name ASC';
+      if (sort === 'alphabetical') {
+        orderByClause = 'ORDER BY c.name ASC';
+      } else if (sort === 'least-complete') {
+        orderByClause = 'ORDER BY "completionPercentage" ASC, "solvedProblems" ASC, c.name ASC';
+      } else if (sort === 'most-remaining') {
+        orderByClause = 'ORDER BY "remainingProblems" DESC, c.name ASC';
+      }
+
+      let filterClause = '';
+      if (filter === 'completed') {
+        filterClause = 'AND COALESCE(us.solved_count, 0) = COALESCE(ct.total_count, 0) AND COALESCE(ct.total_count, 0) > 0';
+      } else if (filter === 'in-progress') {
+        filterClause = 'AND COALESCE(us.solved_count, 0) > 0 AND COALESCE(us.solved_count, 0) < COALESCE(ct.total_count, 0)';
+      } else if (filter === 'not-started') {
+        filterClause = 'AND COALESCE(us.solved_count, 0) = 0';
+      }
+
+      companiesRaw = await prisma.$queryRawUnsafe<CompanyRawRow[]>(`
+        WITH user_solved AS (
+          SELECT cp."companyId", COUNT(cp."problemId")::bigint as solved_count
+          FROM "CompanyProblem" cp
+          WHERE cp."problemId" IN (${guestIdList})
+          GROUP BY cp."companyId"
+        ),
+        company_totals AS (
+          SELECT "companyId", COUNT("problemId")::bigint as total_count
+          FROM "CompanyProblem"
+          GROUP BY "companyId"
+        )
+        SELECT 
+          c.id,
+          c.name,
+          c.slug,
+          COALESCE(ct.total_count, 0::bigint) as "totalProblems",
+          COALESCE(us.solved_count, 0::bigint) as "solvedProblems",
+          CASE WHEN COALESCE(ct.total_count, 0) > 0 
+               THEN (CAST(COALESCE(us.solved_count, 0) AS FLOAT) / ct.total_count) * 100 
+               ELSE 0.0 END as "completionPercentage",
+          (COALESCE(ct.total_count, 0::bigint) - COALESCE(us.solved_count, 0::bigint)) as "remainingProblems"
+        FROM "Company" c
+        LEFT JOIN company_totals ct ON c.id = ct."companyId"
+        LEFT JOIN user_solved us ON c.id = us."companyId"
+        WHERE LOWER(c.name) LIKE $1
+        ${filterClause}
+        ${orderByClause}
+        LIMIT $2 OFFSET $3
+      `, searchPattern, limit, offset);
     } else {
-      // Guest Mode Query (Optimized catalog totals, 0 solved on server)
+      // Guest Mode baseline query (0 solved)
       let orderByClause = 'ORDER BY COALESCE(ct.total_count, 0) DESC, c.name ASC';
       if (sort === 'alphabetical') {
         orderByClause = 'ORDER BY c.name ASC';
@@ -140,6 +197,21 @@ export async function GET(request: Request) {
               AND upp.id IS NULL
             ORDER BY cp."companyId", cp.frequency DESC
           `, userId);
+        } else if (guestSolvedIds.length > 0) {
+          const guestIdList = guestSolvedIds.join(',');
+          firstUnsolvedRows = await prisma.$queryRawUnsafe<FirstUnsolvedRow[]>(`
+            SELECT DISTINCT ON (cp."companyId")
+              cp."companyId" as "companyId",
+              p.id,
+              p.title,
+              p.url,
+              p.difficulty
+            FROM "CompanyProblem" cp
+            JOIN "Problem" p ON cp."problemId" = p.id
+            WHERE cp."companyId" IN (${idList})
+              AND cp."problemId" NOT IN (${guestIdList})
+            ORDER BY cp."companyId", cp.frequency DESC
+          `);
         } else {
           firstUnsolvedRows = await prisma.$queryRawUnsafe<FirstUnsolvedRow[]>(`
             SELECT DISTINCT ON (cp."companyId")
@@ -191,11 +263,11 @@ export async function GET(request: Request) {
     const headers: Record<string, string> = {
       'Vary': 'Cookie',
     };
-    if (!userId && isGuestParam) {
-      // Guest catalog response partitioned by ?guest=1; safe to cache at Edge CDN without poisoning authenticated sessions.
+    if (!userId && isGuestParam && guestSolvedIds.length === 0) {
+      // Guest baseline catalog response partitioned by ?guest=1; safe to cache at Edge CDN without poisoning authenticated sessions.
       headers['Cache-Control'] = 'public, s-maxage=3600, stale-while-revalidate=86400';
     } else {
-      // Authenticated user data or unpartitioned requests must never be publicly cached.
+      // Authenticated user data or customized guest queries must never be publicly cached.
       headers['Cache-Control'] = 'private, no-cache, no-store, must-revalidate';
     }
 
