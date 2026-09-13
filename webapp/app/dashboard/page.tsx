@@ -66,6 +66,7 @@ export default function Dashboard() {
   });
 
   // Base company catalog (cached at Edge CDN for 1 hour: < 5ms)
+  // Only needed when authenticated to serve as instantaneous placeholderData while user progress resolves
   const { data: baseCatalog } = useQuery<Company[]>({
     queryKey: ['companies-base-catalog', { page: 1, limit: '60' }],
     queryFn: async () => {
@@ -73,7 +74,7 @@ export default function Dashboard() {
       if (!res.ok) throw new Error('Failed to load companies');
       return res.json();
     },
-    enabled: status !== 'loading',
+    enabled: status !== 'loading' && !isGuest,
     staleTime: 1000 * 60 * 60, // 1 hour Edge CDN / client cache
   });
 

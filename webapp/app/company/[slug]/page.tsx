@@ -32,6 +32,7 @@ export default function CompanyPage() {
   const [pageSize, setPageSize] = useState<number | 'all'>(50);
 
   // Fetch base static catalog (ultra-fast from Edge CDN: < 35ms)
+  // Only needed when authenticated to serve as instantaneous placeholderData while user progress resolves
   const { data: baseCatalog } = useQuery<CompanyDetail>({
     queryKey: ['company-catalog', slug],
     queryFn: async () => {
@@ -39,7 +40,7 @@ export default function CompanyPage() {
       if (!res.ok) throw new Error('Company not found');
       return res.json();
     },
-    enabled: status !== 'loading',
+    enabled: status !== 'loading' && !isGuest,
     staleTime: 1000 * 60 * 60, // 1 hour Edge CDN / client sync
   });
 
