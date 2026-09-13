@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useSession } from 'next-auth/react';
 import { useTrackerStore } from '@/store/useTrackerStore';
 import { CompanyDetail, Problem } from '@/types';
 import { getDifficultyColor, formatPercent, formatRelativeTime } from '@/utils/helpers';
@@ -16,6 +17,8 @@ export default function CompanyPage() {
   const router = useRouter();
   const slug = params.slug as string;
   const queryClient = useQueryClient();
+  const { status } = useSession();
+  const isGuest = status !== 'authenticated';
   
   const { globalSearch, setGlobalSearch, setSelectedProblemId, addToast, openGuestGate } = useTrackerStore();
   
@@ -30,9 +33,9 @@ export default function CompanyPage() {
 
   // Fetch company details
   const { data: company, isLoading, error } = useQuery<CompanyDetail>({
-    queryKey: ['company', slug],
+    queryKey: ['company', slug, { isGuest }],
     queryFn: async () => {
-      const res = await fetch(`/api/companies/${slug}`);
+      const res = await fetch(`/api/companies/${slug}${isGuest ? '?guest=1' : ''}`);
       if (!res.ok) throw new Error('Company not found');
       return res.json();
     },

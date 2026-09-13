@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useSession } from 'next-auth/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTrackerStore } from '@/store/useTrackerStore';
 import { X, ExternalLink, Building2, Star, Save, Clipboard, CheckCircle, Circle } from 'lucide-react';
@@ -26,16 +27,18 @@ interface ProblemDetail {
 
 export default function ProblemModal() {
   const queryClient = useQueryClient();
+  const { status } = useSession();
+  const isGuest = status !== 'authenticated';
   const { selectedProblemId, setSelectedProblemId, addToast, openGuestGate } = useTrackerStore();
   const [notesText, setNotesText] = useState('');
   const [isSavingNotes, setIsSavingNotes] = useState(false);
 
   // Fetch problem details
   const { data: problem, isLoading, error } = useQuery<ProblemDetail>({
-    queryKey: ['problem', selectedProblemId],
+    queryKey: ['problem', selectedProblemId, { isGuest }],
     queryFn: async () => {
       if (!selectedProblemId) return null;
-      const res = await fetch(`/api/problems/${selectedProblemId}`);
+      const res = await fetch(`/api/problems/${selectedProblemId}${isGuest ? '?guest=1' : ''}`);
       if (!res.ok) throw new Error('Problem not found');
       return res.json();
     },

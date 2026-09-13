@@ -65,11 +65,13 @@ export default function Navbar() {
     document.documentElement.classList.toggle('light', nextTheme === 'light');
   };
 
+  const isGuest = status !== 'authenticated';
+
   // Fetch stats for the Navbar indicator
   const { data: stats } = useQuery<Stats>({
-    queryKey: ['stats'],
+    queryKey: ['stats', { isGuest }],
     queryFn: async () => {
-      const res = await fetch('/api/stats');
+      const res = await fetch(`/api/stats${isGuest ? '?guest=1' : ''}`);
       if (!res.ok) throw new Error('Failed to fetch stats');
       return res.json();
     },

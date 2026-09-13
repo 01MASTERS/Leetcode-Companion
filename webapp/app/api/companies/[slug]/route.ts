@@ -82,12 +82,17 @@ export async function GET(
     // Find first unsolved problem for Continue Learning
     const firstUnsolved = problems.find(p => !p.solved) || null;
 
-    const headers: Record<string, string> = {};
-    if (!userId) {
-      // Guest response has no user progress; cache at Edge CDN for 1 hour with 24h stale-while-revalidate
+    const { searchParams } = new URL(request.url);
+    const isGuestParam = searchParams.get('guest') === '1';
+
+    const headers: Record<string, string> = {
+      'Vary': 'Cookie',
+    };
+    if (!userId && isGuestParam) {
+      // Guest catalog partitioned by ?guest=1; safe to cache at Edge CDN without poisoning authenticated sessions
       headers['Cache-Control'] = 'public, s-maxage=3600, stale-while-revalidate=86400';
     } else {
-      // Authenticated user data contains private solve state and notes
+      // Authenticated user data or unpartitioned requests must never be publicly cached
       headers['Cache-Control'] = 'private, no-cache, no-store, must-revalidate';
     }
 

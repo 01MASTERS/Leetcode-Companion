@@ -2,8 +2,10 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUserId } from '@/lib/auth-helper';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const isGuestParam = searchParams.get('guest') === '1';
     const todayStr = new Date().toLocaleDateString('sv-SE'); // YYYY-MM-DD
     const startOfToday = new Date(todayStr + 'T00:00:00');
     const userId = await getCurrentUserId();
@@ -42,6 +44,17 @@ export async function GET() {
       };
 
       // Guest Mode Stats Response (cached at Edge CDN for 5 minutes)
+      const headers: Record<string, string> = {
+        'Vary': 'Cookie',
+      };
+      if (isGuestParam) {
+        // Guest stats response partitioned by ?guest=1; safe to cache at Edge CDN without poisoning authenticated sessions
+        headers['Cache-Control'] = 'public, s-maxage=300, stale-while-revalidate=600';
+      } else {
+        // Unpartitioned requests must never be publicly cached
+        headers['Cache-Control'] = 'private, no-cache, no-store, must-revalidate';
+      }
+
       return NextResponse.json({
         overall,
         difficulties,
@@ -61,11 +74,7 @@ export async function GET() {
         companyStats: companies,
         syncStatus: syncConfigData,
         isGuest: true,
-      }, {
-        headers: {
-          'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
-        },
-      });
+      }, { headers });
     }
 
     // Authenticated User Queries

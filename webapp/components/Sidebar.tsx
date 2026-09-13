@@ -15,10 +15,12 @@ export default function Sidebar() {
   const { status } = useSession();
   const { sidebarOpen, toggleSidebar, mobileSidebarOpen, setMobileSidebarOpen } = useTrackerStore();
 
+  const isGuest = status !== 'authenticated';
+
   const { data: stats } = useQuery<Stats>({
-    queryKey: ['stats'],
+    queryKey: ['stats', { isGuest }],
     queryFn: async () => {
-      const res = await fetch('/api/stats');
+      const res = await fetch(`/api/stats${isGuest ? '?guest=1' : ''}`);
       if (!res.ok) throw new Error('Failed to fetch stats');
       return res.json();
     },

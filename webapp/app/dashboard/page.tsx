@@ -3,6 +3,7 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { useTrackerStore } from '@/store/useTrackerStore';
 import { Company, Stats } from '@/types';
 import { Trophy, Flame, CheckCircle, TrendingUp, HelpCircle, ChevronRight, Play, ChevronDown, Check } from 'lucide-react';
@@ -20,6 +21,9 @@ export default function Dashboard() {
     setSelectedProblemId,
     addToast,
   } = useTrackerStore();
+
+  const { status } = useSession();
+  const isGuest = status !== 'authenticated';
 
   const [page, setPage] = React.useState(1);
   const [sortOpen, setSortOpen] = React.useState(false);
@@ -52,9 +56,9 @@ export default function Dashboard() {
 
   // Fetch global metrics
   const { data: stats } = useQuery<Stats>({
-    queryKey: ['stats'],
+    queryKey: ['stats', { isGuest }],
     queryFn: async () => {
-      const res = await fetch('/api/stats');
+      const res = await fetch(`/api/stats${isGuest ? '?guest=1' : ''}`);
       if (!res.ok) throw new Error('Failed to load stats');
       return res.json();
     },
@@ -62,7 +66,7 @@ export default function Dashboard() {
 
   // Fetch companies with query variables
   const { data: companies, isLoading } = useQuery<Company[]>({
-    queryKey: ['companies', { search: globalSearch, filter: dashboardFilter, sort: dashboardSort, page }],
+    queryKey: ['companies', { search: globalSearch, filter: dashboardFilter, sort: dashboardSort, page, isGuest }],
     queryFn: async () => {
       const params = new URLSearchParams({
         search: globalSearch,
@@ -71,6 +75,9 @@ export default function Dashboard() {
         page: page.toString(),
         limit: '60',
       });
+      if (isGuest) {
+        params.append('guest', '1');
+      }
       const res = await fetch(`/api/companies?${params.toString()}`);
       if (!res.ok) throw new Error('Failed to load companies');
       return res.json();
