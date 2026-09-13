@@ -26,7 +26,7 @@ export default function StatisticsPage() {
     enabled: status !== 'loading',
   });
 
-  if (isLoading) {
+  if (isLoading || status === 'loading') {
     return (
       <div className="p-4 sm:p-8 flex flex-col gap-6 max-w-7xl mx-auto text-foreground">
         <div className="space-y-2">

@@ -45,6 +45,8 @@ export default function ProblemModal() {
     enabled: !!selectedProblemId && status !== 'loading',
   });
 
+  const isProblemLoading = isLoading || status === 'loading';
+
   // Sync state notes when data is loaded
   useEffect(() => {
     if (problem) {
@@ -180,18 +182,20 @@ export default function ProblemModal() {
                     {problem.difficulty}
                   </span>
                 )}
-                {problem?.solved ? (
-                  <span className="px-2 sm:px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 dark:bg-emerald-500/10 dark:border-emerald-500/20 dark:text-emerald-400 text-[10px] sm:text-xs font-semibold select-none flex items-center gap-1">
-                    <CheckCircle className="h-3 sm:h-3.5 w-3 sm:w-3.5" /> Solved
-                  </span>
-                ) : (
-                  <span className="px-2 sm:px-2.5 py-0.5 rounded-full bg-muted/60 border border-border text-muted-foreground text-[10px] sm:text-xs font-semibold select-none flex items-center gap-1">
-                    <Circle className="h-3 sm:h-3.5 w-3 sm:w-3.5 text-muted-foreground/50" /> Unsolved
-                  </span>
+                {problem && (
+                  problem.solved ? (
+                    <span className="px-2 sm:px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 dark:bg-emerald-500/10 dark:border-emerald-500/20 dark:text-emerald-400 text-[10px] sm:text-xs font-semibold select-none flex items-center gap-1">
+                      <CheckCircle className="h-3 sm:h-3.5 w-3 sm:w-3.5" /> Solved
+                    </span>
+                  ) : (
+                    <span className="px-2 sm:px-2.5 py-0.5 rounded-full bg-muted/60 border border-border text-muted-foreground text-[10px] sm:text-xs font-semibold select-none flex items-center gap-1">
+                      <Circle className="h-3 sm:h-3.5 w-3 sm:w-3.5 text-muted-foreground/50" /> Unsolved
+                    </span>
+                  )
                 )}
               </div>
               <h2 className="text-lg sm:text-xl font-bold text-foreground mt-1.5 sm:mt-2 select-text truncate sm:whitespace-normal">
-                {isLoading ? 'Loading Problem...' : problem?.title}
+                {isProblemLoading ? 'Loading Problem...' : problem?.title}
               </h2>
             </div>
 
@@ -222,7 +226,7 @@ export default function ProblemModal() {
           </div>
 
           {/* Loading / Error states */}
-          {isLoading && (
+          {isProblemLoading && (
             <div className="flex-1 p-8 sm:p-12 flex flex-col items-center justify-center gap-3 text-muted-foreground">
               <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
               <span className="text-xs sm:text-sm">Fetching details from database...</span>

@@ -145,21 +145,23 @@ Even with client-side guards, users could open multiple browser tabs simultaneou
 
 ---
 
-### Tier 3: Edge CDN HTTP `Cache-Control` Headers
-**Files:** `webapp/app/api/companies/route.ts`, `webapp/app/api/stats/route.ts`, & `webapp/app/api/companies/[slug]/route.ts`
+### Tier 3: Edge CDN HTTP `Cache-Control` Headers & Cache Partitioning
+**Files:** `webapp/app/api/companies/route.ts`, `webapp/app/api/stats/route.ts`, `webapp/app/api/companies/[slug]/route.ts`, `webapp/app/api/problems/[id]/route.ts`
 
 - **The Problem:** 650+ tech companies, individual question tracks, and 3,000+ problems rarely change (only updated once daily via upstream sync). Guest visitors, bots, and landing page previews were re-calculating identical aggregate SQL and huge relation joins on every page hit.
-- **The Solution:**
-  - **Guest Mode (`!userId`):**
+- **The Solution (URL-Partitioned Edge CDN Caching):**
+  - **Guest Mode (`?guest=1`):**
     ```typescript
-    headers['Cache-Control'] = 'public, s-maxage=300, stale-while-revalidate=600';
+    headers['Cache-Control'] = 'public, s-maxage=..., stale-while-revalidate=...';
+    headers['Vary'] = 'Cookie';
     ```
-    Vercel Edge CDN caches the response across global Points of Presence (PoPs) for 5 minutes. Subsequent visitors get responses in **< 25 ms** with **zero serverless CPU time and zero database hits**.
-  - **Authenticated Mode (`userId`):**
+    Vercel Edge CDN caches public catalog responses across global Points of Presence (PoPs) using tailored TTLs (1 hour for companies/problems, 5 minutes for platform statistics, 10 minutes for sync status — see Tier 5 for the authoritative per-endpoint breakdown). Subsequent visitors get responses in **< 25 ms** with **zero serverless CPU time and zero database hits**.
+  - **Authenticated Mode (`userId` / default URL):**
     ```typescript
     headers['Cache-Control'] = 'private, no-cache, no-store, must-revalidate';
+    headers['Vary'] = 'Cookie';
     ```
-    Guarantees user-specific solve metrics remain private and never get cached on shared proxies.
+    Guarantees user-specific solve metrics, bookmarks, and notes remain strictly private, bypass shared Edge CDN caches entirely, and never pollute proxy caches.
 
 ---
 

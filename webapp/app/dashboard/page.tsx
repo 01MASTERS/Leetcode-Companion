@@ -236,7 +236,7 @@ export default function Dashboard() {
       </div>
 
       {/* Companies Cards Grid */}
-      {isLoading ? (
+      {isLoading || status === 'loading' ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {[...Array(9)].map((_, i) => (
             <div key={i} className="h-44 bg-muted rounded-2xl shimmer" />

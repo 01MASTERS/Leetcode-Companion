@@ -135,7 +135,7 @@ export default function CompanyPage() {
     setSelectedProblemId(problem.id);
   };
 
-  if (isLoading) {
+  if (isLoading || status === 'loading') {
     return (
       <div className="p-8 flex flex-col gap-6 max-w-7xl mx-auto text-foreground">
         <div className="h-6 w-24 bg-muted rounded-lg shimmer" />
