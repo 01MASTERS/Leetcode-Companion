@@ -123,14 +123,14 @@ export default function ProblemModal() {
     },
   });
 
-  // Mutation to toggle solved
+  // Mutation to toggle solved status
   const toggleSolvedMutation = useMutation({
-    mutationFn: async (solved: boolean) => {
-      if (isGuest && selectedProblemId) {
-        updateGuestProblem(selectedProblemId, { solved, isManual: true });
-        return { solved, isManual: true };
+    mutationFn: async ({ problemId, solved }: { problemId: number; solved: boolean }) => {
+      if (isGuest) {
+        updateGuestProblem(problemId, { solved, isManual: true });
+        return { id: problemId, solved, isManual: true };
       }
-      const res = await fetch(`/api/problems/${selectedProblemId}`, {
+      const res = await fetch(`/api/problems/${problemId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ solved }),
@@ -143,10 +143,10 @@ export default function ProblemModal() {
       }
       return res.json();
     },
-    onMutate: async (solved: boolean) => {
-      await queryClient.cancelQueries({ queryKey: ['problem', selectedProblemId] });
-      const previousProblem = queryClient.getQueryData(['problem', selectedProblemId, { isGuest }]);
-      queryClient.setQueryData(['problem', selectedProblemId, { isGuest }], (old: any) => {
+    onMutate: async ({ problemId, solved }) => {
+      await queryClient.cancelQueries({ queryKey: ['problem', problemId] });
+      const previousProblem = queryClient.getQueryData(['problem', problemId, { isGuest }]);
+      queryClient.setQueryData(['problem', problemId, { isGuest }], (old: any) => {
         if (!old) return old;
         return {
           ...old,
@@ -155,11 +155,12 @@ export default function ProblemModal() {
           isManual: solved ? false : false,
         };
       });
-      return { previousProblem };
+      return { previousProblem, problemId };
     },
     onError: (err: any, variables, context) => {
+      const targetId = variables.problemId;
       if (context?.previousProblem) {
-        queryClient.setQueryData(['problem', selectedProblemId, { isGuest }], context.previousProblem);
+        queryClient.setQueryData(['problem', targetId, { isGuest }], context.previousProblem);
       }
       if (err.isGuest || err.message?.includes('Sign in with Google')) {
         openGuestGate('Sign in with Google to sync and track your solved problems.');
@@ -167,9 +168,10 @@ export default function ProblemModal() {
         addToast(err.message || 'Failed to update solved status', 'error');
       }
     },
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
+      const targetId = variables.problemId;
       // Reconcile problem cache with backend response
-      queryClient.setQueryData(['problem', selectedProblemId, { isGuest }], (old: any) => {
+      queryClient.setQueryData(['problem', targetId, { isGuest }], (old: any) => {
         if (!old) return old;
         return {
           ...old,
@@ -177,7 +179,7 @@ export default function ProblemModal() {
           isManual: data.isManual,
         };
       });
-      queryClient.invalidateQueries({ queryKey: ['problem', selectedProblemId] });
+      queryClient.invalidateQueries({ queryKey: ['problem', targetId] });
       queryClient.invalidateQueries({ queryKey: ['company'] });
       queryClient.invalidateQueries({ queryKey: ['companies'] });
       queryClient.invalidateQueries({ queryKey: ['stats'] });
@@ -189,9 +191,9 @@ export default function ProblemModal() {
           : 'Marked as unsolved',
         'success'
       );
-      if (selectedProblemId) {
+      if (targetId) {
         Analytics.solveToggle({
-          id: selectedProblemId,
+          id: targetId,
           title: problem?.title,
           difficulty: problem?.difficulty,
           solved: data.solved,
@@ -346,8 +348,15 @@ export default function ProblemModal() {
                 {/* Actions Panel */}
                 <div className="bg-muted/40 border border-border p-4 rounded-xl flex items-center justify-between gap-3">
                   <button
-                    onClick={() => toggleSolvedMutation.mutate(!problem.solved)}
-                    className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl border text-sm font-bold transition-all cursor-pointer ${
+                    onClick={() => {
+                      if (selectedProblemId && !toggleSolvedMutation.isPending) {
+                        toggleSolvedMutation.mutate({ problemId: selectedProblemId, solved: !problem.solved });
+                      }
+                    }}
+                    disabled={toggleSolvedMutation.isPending}
+                    className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl border text-sm font-bold transition-all ${
+                      toggleSolvedMutation.isPending ? 'opacity-80 cursor-wait' : 'cursor-pointer'
+                    } ${
                       problem.solved
                         ? problem.isManual
                           ? 'border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:border-blue-500/40 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20'

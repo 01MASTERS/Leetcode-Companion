@@ -2,14 +2,16 @@ import crypto from 'crypto';
 
 // AES-256-GCM encryption key derivation
 // Uses COOKIE_ENCRYPTION_KEY if provided, otherwise falls back to NEXTAUTH_SECRET.
-// Always hashed via SHA-256 to guarantee a strict 32-byte key.
+// Derived via SHA-256 digest of the server secret to guarantee a strict 32-byte key.
+// Fails closed if no secret is configured in the environment.
 function getEncryptionKey(): Buffer {
-  const secret =
-    process.env.COOKIE_ENCRYPTION_KEY ||
-    process.env.NEXTAUTH_SECRET ||
-    'lc-companion-fallback-encryption-secret-key-32b';
+  const secret = process.env.COOKIE_ENCRYPTION_KEY || process.env.NEXTAUTH_SECRET;
 
-  return crypto.createHash('sha256').update(secret).digest();
+  if (!secret || !secret.trim()) {
+    throw new Error('Encryption error: COOKIE_ENCRYPTION_KEY or NEXTAUTH_SECRET environment variable must be configured.');
+  }
+
+  return crypto.createHash('sha256').update(secret.trim()).digest();
 }
 
 const ALGORITHM = 'aes-256-gcm';

@@ -463,8 +463,15 @@ export default function CompanyPage() {
                     {/* Status column */}
                     <td className="py-3 px-2 sm:px-4 text-center">
                       <button
-                        onClick={() => toggleSolvedMutation.mutate({ id: prob.id, solved: !prob.solved })}
-                        className="p-1.5 rounded-lg hover:bg-muted/80 transition-all cursor-pointer inline-flex items-center justify-center group/status focus:outline-none"
+                        onClick={() => {
+                          if (!toggleSolvedMutation.isPending) {
+                            toggleSolvedMutation.mutate({ id: prob.id, solved: !prob.solved });
+                          }
+                        }}
+                        disabled={toggleSolvedMutation.isPending}
+                        className={`p-1.5 rounded-lg hover:bg-muted/80 transition-all inline-flex items-center justify-center group/status focus:outline-none ${
+                          toggleSolvedMutation.isPending ? 'opacity-80 cursor-wait' : 'cursor-pointer'
+                        }`}
                         title={
                           prob.solved
                             ? prob.isManual

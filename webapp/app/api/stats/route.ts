@@ -21,16 +21,16 @@ export async function GET(request: Request) {
 
     const solvedParam = searchParams.get('solved') || request.headers.get('x-guest-solved');
     const guestSolvedIds = !userId && solvedParam
-      ? solvedParam.split(',').map(Number).filter(n => Number.isInteger(n) && n > 0)
+      ? Array.from(new Set(solvedParam.split(',').map(Number).filter(n => Number.isInteger(n) && n > 0)))
       : [];
 
     const bookmarkedParam = searchParams.get('bookmarked') || request.headers.get('x-guest-bookmarked');
     const guestBookmarkedIds = !userId && bookmarkedParam
-      ? bookmarkedParam.split(',').map(Number).filter(n => Number.isInteger(n) && n > 0)
+      ? Array.from(new Set(bookmarkedParam.split(',').map(Number).filter(n => Number.isInteger(n) && n > 0)))
       : [];
 
     if (!userId) {
-      let guestSolvedProblems = guestSolvedIds.length;
+      let guestSolvedProblems = 0;
       let guestEasySolved = 0;
       let guestMediumSolved = 0;
       let guestHardSolved = 0;
@@ -52,6 +52,7 @@ export async function GET(request: Request) {
           if (dc.difficulty === 'Medium') guestMediumSolved = Number(dc.count);
           if (dc.difficulty === 'Hard') guestHardSolved = Number(dc.count);
         }
+        guestSolvedProblems = guestEasySolved + guestMediumSolved + guestHardSolved;
 
         const companyProgressCounts = await prisma.$queryRawUnsafe<{ solved_count: bigint; total_count: bigint }[]>(`
           WITH user_solved AS (
@@ -82,12 +83,14 @@ export async function GET(request: Request) {
           }
         }
 
+        // Limit recentActivity to the top 20 items (matching the authenticated activity limit)
+        const recentGuestIds = guestSolvedIds.slice(0, 20);
         const solvedProblemsRows = await prisma.problem.findMany({
-          where: { id: { in: guestSolvedIds } },
+          where: { id: { in: recentGuestIds } },
           select: { id: true, title: true, difficulty: true },
         });
         const solvedMap = new Map(solvedProblemsRows.map(p => [p.id, p]));
-        guestRecentActivity = guestSolvedIds
+        guestRecentActivity = recentGuestIds
           .map(id => {
             const prob = solvedMap.get(id);
             if (!prob) return null;

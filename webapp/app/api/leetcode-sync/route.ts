@@ -422,15 +422,6 @@ export async function POST(request: Request) {
             exactSlugs.forEach(slug => solvedSlugs.add(slug));
             cookieValid = true;
             console.log(`Found exactly ${exactSlugs.length} solved question slugs using session cookie for user ${authedUser}.`);
-
-            // When full authenticated cookie sync succeeds, clear prior verified solves to reconcile, preserving manual solves!
-            await prisma.userProblemProgress.updateMany({
-              where: { userId, solved: true, isManual: false },
-              data: { solved: false, solvedAt: null },
-            });
-            await prisma.activityLog.deleteMany({
-              where: { userId },
-            });
           } catch (cookieError: any) {
             cookieWarning = cookieError.message;
             console.warn('Authenticated cookie fetch failed, falling back to public stats sync:', cookieError.message);
@@ -502,6 +493,27 @@ export async function POST(request: Request) {
           });
         }
 
+        // When full authenticated cookie sync succeeds, safely retire older verified solves that are no longer in LeetCode's exact solved set
+        // (preserves manual solves and executes only after the new set is successfully written to avoid data loss)
+        if (cookieValid && matchedProblems.length > 0) {
+          const matchedProblemIds = matchedProblems.map(p => p.id);
+          await prisma.userProblemProgress.updateMany({
+            where: {
+              userId,
+              solved: true,
+              isManual: false,
+              problemId: { notIn: matchedProblemIds },
+            },
+            data: { solved: false, solvedAt: null },
+          });
+          await prisma.activityLog.deleteMany({
+            where: {
+              userId,
+              problemId: { notIn: matchedProblemIds },
+            },
+          });
+        }
+
         // Calculate streak from real submission timestamps
         const { streak, lastSolvedDate } = calculateStreak(recentTimestamps);
 
@@ -512,10 +524,15 @@ export async function POST(request: Request) {
         });
       }
 
-      // Update sync config in DB: If user provided a cookie, persist it encrypted. If not, preserve existing cookie.
-      const cookieToStore = cleanRawCookie !== undefined
-        ? (cleanRawCookie ? encryptCookie(cleanRawCookie) : '')
-        : (config.leetcodeSession || '');
+      // Update sync config in DB: If user provided a cookie, persist it encrypted. If not, preserve existing cookie (re-encrypting if legacy plaintext).
+      let cookieToStore = '';
+      if (cleanRawCookie !== undefined) {
+        cookieToStore = cleanRawCookie ? encryptCookie(cleanRawCookie) : '';
+      } else if (config.leetcodeSession) {
+        cookieToStore = config.leetcodeSession.startsWith('enc:v1:')
+          ? config.leetcodeSession
+          : encryptCookie(config.leetcodeSession);
+      }
 
       await prisma.userSyncConfig.upsert({
         where: { userId },
@@ -545,9 +562,9 @@ export async function POST(request: Request) {
 
       let syncMessage = '';
       if (cookieValid) {
-        syncMessage = `Full Sync complete: ${matchedCount} problems verified and matched to catalog.`;
+        syncMessage = `Full Sync complete: ${matchedCount} problems verified and matched to company catalog.`;
       } else if (totalOnLeetCode > 0) {
-        syncMessage = `Synced ${matchedCount} recent problems from LeetCode. ${unmatchedCount} older solves require cookie or manual check.`;
+        syncMessage = `LeetCode reports ${totalOnLeetCode} solved · ${matchedCount} matched in company catalog · ${unmatchedCount} unmapped to catalog.`;
       } else {
         syncMessage = `Synced ${matchedCount} problems from your recent LeetCode activity.`;
       }
