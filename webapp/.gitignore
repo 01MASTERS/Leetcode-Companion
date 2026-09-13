@@ -47,3 +47,6 @@ next-env.d.ts
 *.db-journal
 *.db-shm
 *.db-wal
+
+# Local Analytics Guide (ignored on push)
+ANALYTICS_GUIDE.md

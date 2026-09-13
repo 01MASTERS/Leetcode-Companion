@@ -1,13 +1,20 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { signIn } from 'next-auth/react';
 import { useTrackerStore } from '@/store/useTrackerStore';
 import { X, Cloud, Sparkles, Shield, Bookmark, CheckCircle2 } from 'lucide-react';
+import { Analytics } from '@/lib/analytics';
 
 export default function GuestGateModal() {
   const { guestGateOpen, guestGateReason, closeGuestGate } = useTrackerStore();
+
+  useEffect(() => {
+    if (guestGateOpen) {
+      Analytics.guestGatePrompt({ reason: guestGateReason });
+    }
+  }, [guestGateOpen, guestGateReason]);
 
   if (!guestGateOpen) return null;
 
@@ -82,7 +89,10 @@ export default function GuestGateModal() {
           {/* Action buttons */}
           <div className="space-y-2.5">
             <button
-              onClick={() => signIn('google')}
+              onClick={() => {
+                Analytics.guestGateSignInClick({ reason: guestGateReason });
+                signIn('google');
+              }}
               className="w-full flex items-center justify-center gap-3 py-2.5 px-4 rounded-xl border border-border/90 bg-card hover:bg-muted/70 hover:border-border text-foreground font-semibold text-sm transition-all shadow-md active:scale-[0.98] cursor-pointer"
             >
               {/* Google G SVG */}

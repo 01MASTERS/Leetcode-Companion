@@ -8,6 +8,7 @@ import { useTrackerStore } from '@/store/useTrackerStore';
 import { X, ExternalLink, Building2, Star, Save, Clipboard, CheckCircle, Circle } from 'lucide-react';
 import { getDifficultyColor, formatPercent } from '@/utils/helpers';
 import AnimatedList from '@/components/AnimatedList';
+import { Analytics } from '@/lib/analytics';
 
 interface ProblemDetail {
   id: number;
@@ -51,8 +52,13 @@ export default function ProblemModal() {
   useEffect(() => {
     if (problem) {
       setNotesText(problem.notes || '');
+      Analytics.problemOpen({
+        id: problem.id,
+        title: problem.title,
+        difficulty: problem.difficulty,
+      });
     }
-  }, [problem]);
+  }, [problem?.id]);
 
   // Mutation to toggle bookmark
   const toggleBookmarkMutation = useMutation({
@@ -76,6 +82,14 @@ export default function ProblemModal() {
       queryClient.invalidateQueries({ queryKey: ['companies'] });
       queryClient.invalidateQueries({ queryKey: ['stats'] });
       addToast(data.bookmarked ? 'Added problem to Bookmarks' : 'Removed from Bookmarks', 'success');
+      if (selectedProblemId) {
+        Analytics.bookmarkToggle({
+          id: selectedProblemId,
+          title: problem?.title,
+          difficulty: problem?.difficulty,
+          bookmarked: data.bookmarked,
+        });
+      }
     },
     onError: (err: any) => {
       if (err.isGuest || err.message?.includes('Sign in with Google')) {
@@ -108,6 +122,14 @@ export default function ProblemModal() {
       queryClient.invalidateQueries({ queryKey: ['companies'] });
       queryClient.invalidateQueries({ queryKey: ['stats'] });
       addToast(data.solved ? 'Verified with LeetCode & marked as solved! 🎉' : 'Marked problem as unsolved', 'success');
+      if (selectedProblemId) {
+        Analytics.solveToggle({
+          id: selectedProblemId,
+          title: problem?.title,
+          difficulty: problem?.difficulty,
+          solved: data.solved,
+        });
+      }
     },
     onError: (err: any) => {
       if (err.isGuest || err.message?.includes('Sign in with Google')) {
@@ -284,6 +306,13 @@ export default function ProblemModal() {
                     href={problem.url}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={() => {
+                      Analytics.solveOnLeetCodeClick({
+                        id: problem.id,
+                        title: problem.title,
+                        url: problem.url,
+                      });
+                    }}
                     className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl border border-primary bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 transition-all shadow-lg shadow-primary/10 cursor-pointer"
                   >
                     <span>Solve on LeetCode</span>

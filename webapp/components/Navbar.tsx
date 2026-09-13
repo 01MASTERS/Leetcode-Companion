@@ -9,6 +9,7 @@ import { useTrackerStore } from '@/store/useTrackerStore';
 import { Search, Flame, ArrowUpRight, LogOut, Settings as SettingsIcon, ChevronDown, HelpCircle, Menu } from 'lucide-react';
 import { Stats } from '@/types';
 import FreshnessBadge from '@/components/FreshnessBadge';
+import { Analytics } from '@/lib/analytics';
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -47,9 +48,15 @@ export default function Navbar() {
   React.useEffect(() => {
     const timer = setTimeout(() => {
       setGlobalSearch(searchInput);
-    }, 250);
+      if (searchInput.trim().length >= 2) {
+        Analytics.search({
+          query: searchInput,
+          location: pathname.startsWith('/company/') ? 'company_page' : 'companies_catalog',
+        });
+      }
+    }, 400);
     return () => clearTimeout(timer);
-  }, [searchInput, setGlobalSearch]);
+  }, [searchInput, setGlobalSearch, pathname]);
 
   // Load and apply theme on start
   React.useEffect(() => {
@@ -122,6 +129,10 @@ export default function Navbar() {
           const data = await res.json();
           if (data.success && data.syncedCount > 0) {
             addToast(`Auto-Sync: Found and marked ${data.syncedCount} new question(s) solved!`, 'success');
+            Analytics.leetcodeSync({
+              reason,
+              syncedCount: data.syncedCount,
+            });
             queryClient.invalidateQueries({ queryKey: ['stats'] });
             queryClient.invalidateQueries({ queryKey: ['companies'] });
             queryClient.invalidateQueries({ queryKey: ['company'] });

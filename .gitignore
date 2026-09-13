@@ -214,4 +214,7 @@ webapp/*.db-wal
 target/
 **/target/
 
+# Local Analytics Guide (ignored on push)
+ANALYTICS_GUIDE.md
+
 

@@ -9,6 +9,7 @@ import { CompanyDetail, Problem } from '@/types';
 import { getDifficultyColor, formatPercent, formatRelativeTime } from '@/utils/helpers';
 import { ArrowLeft, Play, ExternalLink, Bookmark, CheckCircle, Circle, Star, HelpCircle, Calendar } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { Analytics } from '@/lib/analytics';
 
 type RecencyFilter = 'all' | 'thirtyDays' | 'threeMonths' | 'sixMonths' | 'moreThanSixMonths';
 
@@ -57,6 +58,18 @@ export default function CompanyPage() {
   });
 
   const company = userCompany || (isGuest ? undefined : baseCatalog);
+
+  // Track company view in Google Analytics
+  React.useEffect(() => {
+    if (company) {
+      Analytics.companyView({
+        slug: company.slug,
+        name: company.name,
+        totalProblems: company.stats?.totalProblems ?? company.problems?.length,
+        solvedProblems: company.stats?.solvedProblems,
+      });
+    }
+  }, [company?.slug]);
 
   // Reset page whenever search, filters, or page size change
   React.useEffect(() => {
@@ -129,6 +142,10 @@ export default function CompanyPage() {
       queryClient.invalidateQueries({ queryKey: ['stats'] });
       queryClient.invalidateQueries({ queryKey: ['problem', variables.id] });
       addToast(variables.solved ? 'Verified with LeetCode & marked as solved! 🎉' : 'Marked problem as unsolved', 'success');
+      Analytics.solveToggle({
+        id: variables.id,
+        solved: variables.solved,
+      });
     },
     onError: (err: any) => {
       if (err.isGuest || err.message?.includes('Sign in with Google')) {

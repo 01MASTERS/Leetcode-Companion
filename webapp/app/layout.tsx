@@ -7,6 +7,10 @@ import Navbar from '@/components/Navbar';
 import ToastContainer from '@/components/ToastContainer';
 import GlobalModals from '@/components/GlobalModals';
 import { Agentation } from "agentation";
+import Script from 'next/script';
+import { Suspense } from 'react';
+import GoogleAnalyticsTracker from '@/components/GoogleAnalyticsTracker';
+import { GA_MEASUREMENT_ID } from '@/lib/analytics';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -62,7 +66,37 @@ export default function RootLayout({
           {/* Global Modals & Toasts */}
           <GlobalModals />
           <ToastContainer />
+
+          {/* SPA Route & User Session Analytics Tracker */}
+          {GA_MEASUREMENT_ID && (
+            <Suspense fallback={null}>
+              <GoogleAnalyticsTracker />
+            </Suspense>
+          )}
         </Providers>
+
+        {/* Google Analytics 4 (Only active when NEXT_PUBLIC_GA_ID is provided) */}
+        {GA_MEASUREMENT_ID && (
+          <>
+            <Script
+              strategy="afterInteractive"
+              src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
+            />
+            <Script
+              id="google-analytics"
+              strategy="afterInteractive"
+              dangerouslySetInnerHTML={{
+                __html: `
+                  window.dataLayer = window.dataLayer || [];
+                  function gtag(){dataLayer.push(arguments);}
+                  gtag('js', new Date());
+                  gtag('config', '${GA_MEASUREMENT_ID}');
+                `,
+              }}
+            />
+          </>
+        )}
+
         {process.env.NODE_ENV === "development" && <Agentation />}
       </body>
     </html>
