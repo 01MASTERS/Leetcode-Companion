@@ -52,6 +52,13 @@ export async function GET(
       frequency: cp.frequency,
     })).sort((a, b) => b.frequency - a.frequency);
 
+    const headers: Record<string, string> = {};
+    if (!userId) {
+      headers['Cache-Control'] = 'public, s-maxage=3600, stale-while-revalidate=86400';
+    } else {
+      headers['Cache-Control'] = 'private, no-cache, no-store, must-revalidate';
+    }
+
     return NextResponse.json({
       id: problem.id,
       title: problem.title,
@@ -62,7 +69,7 @@ export async function GET(
       notes: progress?.notes || '',
       bookmarked: progress?.bookmarked || false,
       companies,
-    });
+    }, { headers });
   } catch (error: any) {
     console.error('Error fetching problem details:', error);
     const details = process.env.NODE_ENV === 'development' ? error.message : undefined;

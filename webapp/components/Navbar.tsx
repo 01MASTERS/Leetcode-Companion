@@ -73,7 +73,7 @@ export default function Navbar() {
       if (!res.ok) throw new Error('Failed to fetch stats');
       return res.json();
     },
-    refetchInterval: 60000,
+    refetchInterval: 1000 * 60 * 10, // 10 minutes
   });
 
   const leetcodeUser = stats?.syncConfig?.leetcodeUser;
@@ -137,8 +137,8 @@ export default function Navbar() {
     // Initial sync on mount
     performSync('mount');
 
-    // Regular active-interval poll (only runs when tab is actively visible)
-    const intervalId = setInterval(() => performSync('timer'), 60000);
+    // Regular active-interval poll (only runs when tab is actively visible, spaced to 10 mins when idle)
+    const intervalId = setInterval(() => performSync('timer'), 1000 * 60 * 10);
 
     // Event 1: Window Focus (triggers immediately when user returns from solving on LeetCode)
     const handleFocus = () => performSync('focus');

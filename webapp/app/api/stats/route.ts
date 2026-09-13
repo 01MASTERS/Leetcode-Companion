@@ -63,7 +63,7 @@ export async function GET() {
         isGuest: true,
       }, {
         headers: {
-          'Cache-Control': 'private, no-cache, no-store, must-revalidate',
+          'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
         },
       });
     }

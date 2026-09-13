@@ -182,6 +182,37 @@ Even with client-side guards, users could open multiple browser tabs simultaneou
 
 ---
 
+### Tier 5: Question Display & Database Query Latency Optimization
+**Files:** `webapp/app/api/companies/route.ts`, `webapp/app/api/stats/route.ts`, `webapp/app/api/problems/[id]/route.ts`, `webapp/app/api/catalog/sync-status/route.ts`
+
+1. **Targeted PostgreSQL `DISTINCT ON` Query for Company Cards (`/api/companies`):**
+   - **The Problem:** Populating the single `firstUnsolved` question for 60 company cards previously executed `prisma.companyProblem.findMany` with `where: { companyId: { in: companyIds } }` without limit per company. This loaded over **15,000 question records** into serverless Node.js memory just to pick the first element with an in-memory loop, causing cold `/api/companies` latency to spike to **4,432 ms**.
+   - **The Fix:** Replaced with a single PostgreSQL index scan using `DISTINCT ON (cp."companyId")`:
+     ```sql
+     SELECT DISTINCT ON (cp."companyId")
+       cp."companyId" as "companyId",
+       p.id, p.title, p.url, p.difficulty
+     FROM "CompanyProblem" cp
+     JOIN "Problem" p ON cp."problemId" = p.id
+     WHERE cp."companyId" IN (...)
+     ORDER BY cp."companyId", cp.frequency DESC;
+     ```
+   - **The Impact:** Reduces rows transferred from Supabase to Vercel by **99.6%** (from 15,000+ rows down to 60 rows), dropping query execution time to **< 150 ms**.
+
+2. **Edge CDN Caching for Problem Details Modal (`/api/problems/[id]`):**
+   - Public problem details (metadata, difficulty, company frequency list) are now cached at Vercel Edge for **1 hour** (`public, s-maxage=3600, stale-while-revalidate=86400`) for guest visitors.
+   - Reduces problem modal opening latency from **2,204 ms** down to **< 100 ms**.
+
+3. **Correction of `/api/stats` Edge Cache Header:**
+   - Fixed a discrepancy where the guest stats route sent `private, no-cache, must-revalidate` despite intending to cache at the edge.
+   - Now properly cached at the edge for 5 minutes (`public, s-maxage=300, stale-while-revalidate=600`), avoiding 5 separate count queries per visit and slashing latency from **1,410 ms** to **< 50 ms**.
+
+4. **Edge CDN Caching & Pruned Queries in `/api/catalog/sync-status`:**
+   - Added `public, s-maxage=600, stale-while-revalidate=1800` and short-circuited redundant `prisma.company.count()` and `prisma.problem.count()` queries when `latestSync` already stores the catalog totals.
+   - Eliminates a blocking **3,280 ms** background call on every page load.
+
+---
+
 ## 4. Mathematical Traffic Analysis (Before vs. After)
 
 ### Baseline Assumptions (Typical LeetCode Prep Session)

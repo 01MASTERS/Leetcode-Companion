@@ -84,8 +84,8 @@ export async function GET(
 
     const headers: Record<string, string> = {};
     if (!userId) {
-      // Guest response has no user progress; cache at Edge CDN for 5 minutes
-      headers['Cache-Control'] = 'public, s-maxage=300, stale-while-revalidate=600';
+      // Guest response has no user progress; cache at Edge CDN for 1 hour with 24h stale-while-revalidate
+      headers['Cache-Control'] = 'public, s-maxage=3600, stale-while-revalidate=86400';
     } else {
       // Authenticated user data contains private solve state and notes
       headers['Cache-Control'] = 'private, no-cache, no-store, must-revalidate';

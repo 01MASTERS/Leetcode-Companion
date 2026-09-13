@@ -14,8 +14,16 @@ export async function GET() {
       take: 10,
     });
 
-    const totalCompanies = latestSync?.totalCompanies ?? (await prisma.company.count());
-    const totalProblems = latestSync?.totalProblems ?? (await prisma.problem.count());
+    const totalCompanies = (latestSync?.totalCompanies && latestSync.totalCompanies > 0)
+      ? latestSync.totalCompanies
+      : await prisma.company.count();
+    const totalProblems = (latestSync?.totalProblems && latestSync.totalProblems > 0)
+      ? latestSync.totalProblems
+      : await prisma.problem.count();
+
+    const headers = {
+      'Cache-Control': 'public, s-maxage=600, stale-while-revalidate=1800',
+    };
 
     return NextResponse.json({
       latest: latestSync
@@ -40,7 +48,7 @@ export async function GET() {
         syncedAt: a.syncedAt,
         summary: a.summary,
       })),
-    });
+    }, { headers });
   } catch (error: any) {
     console.error('Error fetching catalog sync status:', error);
     return NextResponse.json({ error: 'Failed to fetch catalog sync status' }, { status: 500 });

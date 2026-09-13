@@ -95,45 +95,58 @@ export async function GET(request: Request) {
 
     const companyIds = companiesRaw.map(c => c.id);
 
-    // Fetch firstUnsolved for the target page of companies
+    // Fetch firstUnsolved for the target page of companies with DISTINCT ON (cp."companyId")
     let firstUnsolvedMap: Record<number, any> = {};
     if (companyIds.length > 0) {
-      const problemFilter = userId
-        ? {
-            userProgress: {
-              none: {
-                userId,
-                solved: true,
-              },
-            },
-          }
-        : {};
+      const idList = companyIds.map(Number).filter(n => !isNaN(n)).join(',');
+      if (idList.length > 0) {
+        interface FirstUnsolvedRow {
+          companyId: number;
+          id: number;
+          title: string;
+          url: string;
+          difficulty: string;
+        }
 
-      const firstUnsolvedList = await prisma.companyProblem.findMany({
-        where: {
-          companyId: { in: companyIds },
-          problem: problemFilter,
-        },
-        orderBy: [
-          { companyId: 'asc' },
-          { frequency: 'desc' },
-        ],
-        select: {
-          companyId: true,
-          problem: {
-            select: {
-              id: true,
-              title: true,
-              url: true,
-              difficulty: true,
-            },
-          },
-        },
-      });
+        let firstUnsolvedRows: FirstUnsolvedRow[] = [];
+        if (userId) {
+          firstUnsolvedRows = await prisma.$queryRawUnsafe<FirstUnsolvedRow[]>(`
+            SELECT DISTINCT ON (cp."companyId")
+              cp."companyId" as "companyId",
+              p.id,
+              p.title,
+              p.url,
+              p.difficulty
+            FROM "CompanyProblem" cp
+            JOIN "Problem" p ON cp."problemId" = p.id
+            LEFT JOIN "UserProblemProgress" upp 
+              ON cp."problemId" = upp."problemId" AND upp."userId" = $1 AND upp.solved = TRUE
+            WHERE cp."companyId" IN (${idList})
+              AND upp.id IS NULL
+            ORDER BY cp."companyId", cp.frequency DESC
+          `, userId);
+        } else {
+          firstUnsolvedRows = await prisma.$queryRawUnsafe<FirstUnsolvedRow[]>(`
+            SELECT DISTINCT ON (cp."companyId")
+              cp."companyId" as "companyId",
+              p.id,
+              p.title,
+              p.url,
+              p.difficulty
+            FROM "CompanyProblem" cp
+            JOIN "Problem" p ON cp."problemId" = p.id
+            WHERE cp."companyId" IN (${idList})
+            ORDER BY cp."companyId", cp.frequency DESC
+          `);
+        }
 
-      for (const item of firstUnsolvedList) {
-        if (!firstUnsolvedMap[item.companyId]) {
-          firstUnsolvedMap[item.companyId] = item.problem;
+        for (const row of firstUnsolvedRows) {
+          firstUnsolvedMap[row.companyId] = {
+            id: row.id,
+            title: row.title,
+            url: row.url,
+            difficulty: row.difficulty,
+          };
         }
       }
     }
@@ -160,8 +173,8 @@ export async function GET(request: Request) {
 
     const headers: Record<string, string> = {};
     if (!userId) {
-      // Guest catalog response is identical for all visitors. Cache at Edge CDN for 5 minutes.
-      headers['Cache-Control'] = 'public, s-maxage=300, stale-while-revalidate=600';
+      // Guest catalog response is identical for all visitors. Cache at Edge CDN for 1 hour with 24h stale-while-revalidate.
+      headers['Cache-Control'] = 'public, s-maxage=3600, stale-while-revalidate=86400';
     } else {
       // Authenticated user data contains personalized solve progress; never cache publicly.
       headers['Cache-Control'] = 'private, no-cache, no-store, must-revalidate';
