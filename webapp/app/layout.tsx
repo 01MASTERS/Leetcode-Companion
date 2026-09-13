@@ -7,6 +7,7 @@ import Navbar from '@/components/Navbar';
 import ToastContainer from '@/components/ToastContainer';
 import GlobalModals from '@/components/GlobalModals';
 import { Agentation } from "agentation";
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -64,6 +65,7 @@ export default function RootLayout({
           <ToastContainer />
         </Providers>
         {process.env.NODE_ENV === "development" && <Agentation />}
+        <SpeedInsights />
       </body>
     </html>
   );
