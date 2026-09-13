@@ -65,7 +65,7 @@ export default function Navbar() {
     document.documentElement.classList.toggle('light', nextTheme === 'light');
   };
 
-  const isGuest = status !== 'authenticated';
+  const isGuest = status === 'unauthenticated';
 
   // Fetch stats for the Navbar indicator
   const { data: stats } = useQuery<Stats>({
@@ -75,6 +75,7 @@ export default function Navbar() {
       if (!res.ok) throw new Error('Failed to fetch stats');
       return res.json();
     },
+    enabled: status !== 'loading',
     refetchInterval: 1000 * 60 * 10, // 10 minutes
   });
 

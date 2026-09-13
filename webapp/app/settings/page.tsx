@@ -15,15 +15,19 @@ export default function SettingsPage() {
   const [username, setUsername] = useState('');
   const [leetcodeSession, setLeetcodeSession] = useState('');
 
+  const isGuest = status === 'unauthenticated';
+
   // Fetch current statistics (which contains sync configurations)
   const { data: stats } = useQuery<Stats>({
-    queryKey: ['stats'],
+    queryKey: ['stats', { isGuest }],
     queryFn: async () => {
-      const res = await fetch('/api/stats', { cache: 'no-store' });
+      const url = isGuest ? '/api/stats?guest=1' : '/api/stats';
+      const res = await fetch(url, isGuest ? undefined : { cache: 'no-store' });
       if (!res.ok) throw new Error('Failed to load stats');
       return res.json();
     },
-    staleTime: 0,
+    enabled: status !== 'loading',
+    staleTime: isGuest ? 1000 * 60 * 5 : 0,
     refetchOnMount: 'always',
   });
 

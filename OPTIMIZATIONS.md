@@ -145,21 +145,23 @@ Even with client-side guards, users could open multiple browser tabs simultaneou
 
 ---
 
-### Tier 3: Edge CDN HTTP `Cache-Control` Headers
-**Files:** `webapp/app/api/companies/route.ts`, `webapp/app/api/stats/route.ts`, & `webapp/app/api/companies/[slug]/route.ts`
+### Tier 3: Edge CDN HTTP `Cache-Control` Headers & Cache Partitioning
+**Files:** `webapp/app/api/companies/route.ts`, `webapp/app/api/stats/route.ts`, `webapp/app/api/companies/[slug]/route.ts`, `webapp/app/api/problems/[id]/route.ts`
 
 - **The Problem:** 650+ tech companies, individual question tracks, and 3,000+ problems rarely change (only updated once daily via upstream sync). Guest visitors, bots, and landing page previews were re-calculating identical aggregate SQL and huge relation joins on every page hit.
-- **The Solution:**
-  - **Guest Mode (`!userId`):**
+- **The Solution (URL-Partitioned Edge CDN Caching):**
+  - **Guest Mode (`?guest=1`):**
     ```typescript
-    headers['Cache-Control'] = 'public, s-maxage=300, stale-while-revalidate=600';
+    headers['Cache-Control'] = 'public, s-maxage=..., stale-while-revalidate=...';
+    headers['Vary'] = 'Cookie';
     ```
-    Vercel Edge CDN caches the response across global Points of Presence (PoPs) for 5 minutes. Subsequent visitors get responses in **< 25 ms** with **zero serverless CPU time and zero database hits**.
-  - **Authenticated Mode (`userId`):**
+    Vercel Edge CDN caches public catalog responses across global Points of Presence (PoPs) using tailored TTLs (1 hour for companies/problems, 5 minutes for platform statistics, 10 minutes for sync status — see Tier 5 for the authoritative per-endpoint breakdown). Subsequent visitors get responses in **< 25 ms** with **zero serverless CPU time and zero database hits**.
+  - **Authenticated Mode (`userId` / default URL):**
     ```typescript
     headers['Cache-Control'] = 'private, no-cache, no-store, must-revalidate';
+    headers['Vary'] = 'Cookie';
     ```
-    Guarantees user-specific solve metrics remain private and never get cached on shared proxies.
+    Guarantees user-specific solve metrics, bookmarks, and notes remain strictly private, bypass shared Edge CDN caches entirely, and never pollute proxy caches.
 
 ---
 
@@ -202,9 +204,17 @@ Even with client-side guards, users could open multiple browser tabs simultaneou
 2. **URL-Partitioned Edge CDN Caching (`?guest=1`) & Cache Isolation:**
    - **The Multi-Tenant CDN Problem:** When routes return personalized user progress (`solved: true`, personal notes, bookmarks) for signed-in users, caching guest responses under the default URL risks Edge CDN cache poisoning—where a logged-in user hitting the same URL receives a cached guest response with 0 solved questions.
    - **The URL Partitioning Fix:** Public catalog caching is strictly partitioned by the `?guest=1` query parameter and backed by `Vary: Cookie`:
-     - Guests request: `/api/companies?guest=1`, `/api/companies/[slug]?guest=1`, `/api/problems/[id]?guest=1`, `/api/stats?guest=1` $\rightarrow$ Cached at Edge CDN for 1 hour (`< 50 ms`).
-     - Signed-in users request without `?guest=1` $\rightarrow$ Completely bypasses the guest Edge cache, directly returning private, real-time user solve states with `Cache-Control: private, no-cache, no-store, must-revalidate`.
-   - **Result:** Guests enjoy sub-50ms instant edge responses, while authenticated users are guaranteed 100% fresh, personalized progress with zero cross-session cache leakage.
+     - Guests request with `?guest=1` $\rightarrow$ Served instantly from Vercel Edge CDN (`< 50 ms`).
+     - Signed-in users request without `?guest=1` $\rightarrow$ Completely bypasses the guest Edge cache, returning private real-time solve states with `Cache-Control: private, no-cache, no-store, must-revalidate`.
+   - **Targeted Per-Endpoint TTL Breakdown:**
+     - `/api/companies`: **1 hour** (`s-maxage=3600, stale-while-revalidate=86400`)
+     - `/api/companies/[slug]`: **1 hour** (`s-maxage=3600, stale-while-revalidate=86400`)
+     - `/api/problems/[id]`: **1 hour** (`s-maxage=3600, stale-while-revalidate=86400`)
+     - `/api/stats`: **5 minutes** (`s-maxage=300, stale-while-revalidate=600`)
+     - `/api/catalog/sync-status`: **10 minutes** (`s-maxage=600, stale-while-revalidate=1800`)
+   - **Session Loading Race-Condition Fix:**
+     - Avoided treating `status === 'loading'` as guest (which caused authenticated users to briefly fire a duplicate `?guest=1` request before their session resolved).
+     - Defined `isGuest = status === 'unauthenticated'` and added `enabled: status !== 'loading'` across all queries, completely preventing duplicate network calls and UI flashing.
 
 3. **Edge CDN Caching & Pruned Queries in `/api/catalog/sync-status`:**
    - Added `public, s-maxage=600, stale-while-revalidate=1800` and short-circuited redundant `prisma.company.count()` and `prisma.problem.count()` queries when `latestSync` already stores the catalog totals.

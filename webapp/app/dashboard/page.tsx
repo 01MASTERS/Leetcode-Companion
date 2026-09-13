@@ -23,7 +23,7 @@ export default function Dashboard() {
   } = useTrackerStore();
 
   const { status } = useSession();
-  const isGuest = status !== 'authenticated';
+  const isGuest = status === 'unauthenticated';
 
   const [page, setPage] = React.useState(1);
   const [sortOpen, setSortOpen] = React.useState(false);
@@ -62,6 +62,7 @@ export default function Dashboard() {
       if (!res.ok) throw new Error('Failed to load stats');
       return res.json();
     },
+    enabled: status !== 'loading',
   });
 
   // Fetch companies with query variables
@@ -82,6 +83,7 @@ export default function Dashboard() {
       if (!res.ok) throw new Error('Failed to load companies');
       return res.json();
     },
+    enabled: status !== 'loading',
   });
 
   const handleContinueLearning = (e: React.MouseEvent, company: Company) => {
@@ -234,7 +236,7 @@ export default function Dashboard() {
       </div>
 
       {/* Companies Cards Grid */}
-      {isLoading ? (
+      {isLoading || status === 'loading' ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {[...Array(9)].map((_, i) => (
             <div key={i} className="h-44 bg-muted rounded-2xl shimmer" />
