@@ -72,6 +72,26 @@ export function clearGuestProgress(): void {
   }
 }
 
+export function removeGuestProblems(problemIds: number[]): void {
+  if (typeof window === 'undefined' || !problemIds || problemIds.length === 0) return;
+  try {
+    const current = getGuestProgress();
+    let changed = false;
+    for (const id of problemIds) {
+      if (id in current) {
+        delete current[id];
+        changed = true;
+      }
+    }
+    if (changed) {
+      saveGuestProgress(current);
+      window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: {} }));
+    }
+  } catch (e) {
+    console.error('Failed to remove migrated guest problems', e);
+  }
+}
+
 export function useGuestProgress(): GuestProgressMap {
   const [progress, setProgress] = useState<GuestProgressMap>(() => {
     if (typeof window === 'undefined') return {};
