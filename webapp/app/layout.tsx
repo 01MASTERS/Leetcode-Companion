@@ -11,6 +11,8 @@ import Script from 'next/script';
 import { Suspense } from 'react';
 import GoogleAnalyticsTracker from '@/components/GoogleAnalyticsTracker';
 import { GA_MEASUREMENT_ID } from '@/lib/analytics';
+import { Analytics as VercelAnalytics } from '@vercel/analytics/next';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -98,6 +100,8 @@ export default function RootLayout({
         )}
 
         {process.env.NODE_ENV === "development" && <Agentation />}
+        <VercelAnalytics />
+        <SpeedInsights />
       </body>
     </html>
   );
