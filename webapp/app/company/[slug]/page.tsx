@@ -10,6 +10,7 @@ import { getDifficultyColor, formatPercent, formatRelativeTime } from '@/utils/h
 import { ArrowLeft, Play, ExternalLink, Bookmark, CheckCircle, Circle, Star, HelpCircle, Calendar } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Analytics } from '@/lib/analytics';
+import { useGuestProgress, updateGuestProblem } from '@/lib/guest-storage';
 
 type RecencyFilter = 'all' | 'thirtyDays' | 'threeMonths' | 'sixMonths' | 'moreThanSixMonths';
 
@@ -57,7 +58,44 @@ export default function CompanyPage() {
     placeholderData: isGuest ? undefined : (previousData) => previousData || baseCatalog,
   });
 
-  const company = userCompany || (isGuest ? undefined : baseCatalog);
+  const guestProgress = useGuestProgress();
+
+  const rawCompany = userCompany || (isGuest ? undefined : baseCatalog);
+
+  // Overlay guest progress if unauthenticated
+  const company = useMemo(() => {
+    if (!rawCompany) return undefined;
+    if (!isGuest) return rawCompany;
+
+    const augmentedProblems = rawCompany.problems.map((prob) => {
+      const gp = guestProgress[prob.id];
+      if (!gp) return prob;
+      return {
+        ...prob,
+        solved: gp.solved !== undefined ? Boolean(gp.solved) : prob.solved,
+        isManual: gp.isManual !== undefined ? Boolean(gp.isManual) : prob.isManual,
+        bookmarked: gp.bookmarked !== undefined ? Boolean(gp.bookmarked) : prob.bookmarked,
+        notes: gp.notes !== undefined ? (gp.notes || '') : prob.notes,
+      };
+    });
+
+    const total = augmentedProblems.length;
+    const solved = augmentedProblems.filter((p) => p.solved).length;
+    const completion = total > 0 ? (solved / total) * 100 : 0;
+    const firstUnsolved = augmentedProblems.find((p) => !p.solved) || null;
+
+    return {
+      ...rawCompany,
+      problems: augmentedProblems,
+      firstUnsolved,
+      stats: {
+        ...rawCompany.stats,
+        totalProblems: total,
+        solvedProblems: solved,
+        completionPercentage: completion,
+      },
+    };
+  }, [rawCompany, isGuest, guestProgress]);
 
   // Track company view in Google Analytics
   React.useEffect(() => {
@@ -123,6 +161,10 @@ export default function CompanyPage() {
 
   const toggleSolvedMutation = useMutation({
     mutationFn: async ({ id, solved }: { id: number; solved: boolean }) => {
+      if (isGuest) {
+        updateGuestProblem(id, { solved, isManual: true });
+        return { id, solved, isManual: true };
+      }
       const res = await fetch(`/api/problems/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -136,23 +178,66 @@ export default function CompanyPage() {
       }
       return res.json();
     },
-    onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['company', slug] });
-      queryClient.invalidateQueries({ queryKey: ['companies'] });
-      queryClient.invalidateQueries({ queryKey: ['stats'] });
-      queryClient.invalidateQueries({ queryKey: ['problem', variables.id] });
-      addToast(variables.solved ? 'Verified with LeetCode & marked as solved! 🎉' : 'Marked problem as unsolved', 'success');
-      Analytics.solveToggle({
-        id: variables.id,
-        solved: variables.solved,
+    onMutate: async ({ id, solved }) => {
+      await queryClient.cancelQueries({ queryKey: ['company', slug] });
+      const previousCompany = queryClient.getQueryData(['company', slug, { isGuest }]);
+
+      queryClient.setQueryData(['company', slug, { isGuest }], (old: any) => {
+        if (!old || !old.problems) return old;
+        // Optimistically turn green (isManual: false); backend will decide to keep green or turn blue
+        const newProblems = old.problems.map((p: any) =>
+          p.id === id ? { ...p, solved, isManual: solved ? false : false } : p
+        );
+        const total = newProblems.length;
+        const solvedCount = newProblems.filter((p: any) => p.solved).length;
+        return {
+          ...old,
+          problems: newProblems,
+          stats: {
+            ...old.stats,
+            solvedProblems: solvedCount,
+            completionPercentage: total > 0 ? (solvedCount / total) * 100 : 0,
+          },
+        };
       });
+
+      return { previousCompany };
     },
-    onError: (err: any) => {
+    onError: (err: any, variables, context) => {
+      if (context?.previousCompany) {
+        queryClient.setQueryData(['company', slug, { isGuest }], context.previousCompany);
+      }
       if (err.isGuest || err.message?.includes('Sign in with Google')) {
         openGuestGate('Sign in with Google to sync and track your solved problems across devices.');
       } else {
         addToast(err.message || 'Failed to update solved status', 'error');
       }
+    },
+    onSuccess: (data, variables) => {
+      // Reconcile query cache with backend response (stays green if verified, turns blue if manual)
+      queryClient.setQueryData(['company', slug, { isGuest }], (old: any) => {
+        if (!old || !old.problems) return old;
+        const newProblems = old.problems.map((p: any) =>
+          p.id === variables.id ? { ...p, solved: data.solved, isManual: data.isManual } : p
+        );
+        return { ...old, problems: newProblems };
+      });
+      queryClient.invalidateQueries({ queryKey: ['company', slug] });
+      queryClient.invalidateQueries({ queryKey: ['companies'] });
+      queryClient.invalidateQueries({ queryKey: ['stats'] });
+      queryClient.invalidateQueries({ queryKey: ['problem', variables.id] });
+      addToast(
+        variables.solved
+          ? data.isManual
+            ? 'Marked as manual'
+            : 'Solved & verified'
+          : 'Marked as unsolved',
+        'success'
+      );
+      Analytics.solveToggle({
+        id: variables.id,
+        solved: variables.solved,
+      });
     },
   });
 
@@ -221,6 +306,7 @@ export default function CompanyPage() {
         <div>
           <div className="flex items-baseline gap-3 flex-wrap">
             <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight">{name}</h1>
+
             {company.updatedAt && (
               <span className="text-xs text-muted-foreground font-medium">
                 Last updated: {formatRelativeTime(company.updatedAt)}
@@ -378,20 +464,21 @@ export default function CompanyPage() {
                     <td className="py-3 px-2 sm:px-4 text-center">
                       <button
                         onClick={() => toggleSolvedMutation.mutate({ id: prob.id, solved: !prob.solved })}
-                        disabled={toggleSolvedMutation.isPending && (toggleSolvedMutation.variables as any)?.id === prob.id}
                         className="p-1.5 rounded-lg hover:bg-muted/80 transition-all cursor-pointer inline-flex items-center justify-center group/status focus:outline-none"
                         title={
-                          toggleSolvedMutation.isPending && (toggleSolvedMutation.variables as any)?.id === prob.id
-                            ? "Verifying with LeetCode..."
-                            : prob.solved
-                            ? "Solved — Click to mark as unsolved"
-                            : "Click to verify & mark as solved"
+                          prob.solved
+                            ? prob.isManual
+                              ? "Marked solved — Click to mark as unsolved"
+                              : "Solved & verified — Click to mark as unsolved"
+                            : "Click to mark as solved"
                         }
                       >
-                        {toggleSolvedMutation.isPending && (toggleSolvedMutation.variables as any)?.id === prob.id ? (
-                          <div className="h-4 w-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-                        ) : prob.solved ? (
-                          <CheckCircle className="h-4.5 w-4.5 text-emerald-600 dark:text-emerald-500 group-hover/status:scale-110 transition-transform" />
+                        {prob.solved ? (
+                          prob.isManual ? (
+                            <CheckCircle className="h-4.5 w-4.5 text-blue-600 dark:text-blue-400 group-hover/status:scale-110 transition-transform" />
+                          ) : (
+                            <CheckCircle className="h-4.5 w-4.5 text-emerald-600 dark:text-emerald-500 group-hover/status:scale-110 transition-transform" />
+                          )
                         ) : (
                           <Circle className="h-4.5 w-4.5 text-muted-foreground/40 group-hover/status:text-emerald-600 dark:group-hover/status:text-emerald-500 group-hover/status:scale-110 transition-all" />
                         )}

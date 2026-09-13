@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUserId } from '@/lib/auth-helper';
+import { encryptCookie, decryptCookie } from '@/lib/encryption';
 
 // Helper to extract clean LEETCODE_SESSION cookie token
 function extractSessionCookie(rawInput: string): string {
@@ -223,22 +224,23 @@ async function batchUpsertProgress(
 
     for (const p of chunk) {
       // ONLY problems present in submissionMap receive a solvedAt timestamp.
-      // Non-recent problems (from bulk cookie or counts filler) receive NULL,
+      // Non-recent problems (from bulk cookie) receive NULL,
       // ensuring we never assign fake timestamps to historical solves.
       const solvedDate = submissionMap.get(p.titleSlug) || null;
       valuePlaceholders.push(
-        `($${paramIdx++}, $${paramIdx++}, TRUE, $${paramIdx++}::timestamp, '', FALSE, NOW(), NOW())`
+        `($${paramIdx++}, $${paramIdx++}, TRUE, $${paramIdx++}::timestamp, '', FALSE, FALSE, NOW(), NOW())`
       );
       params.push(userId, p.id, solvedDate);
     }
 
     const sql = `
-      INSERT INTO "UserProblemProgress" ("userId", "problemId", "solved", "solvedAt", "notes", "bookmarked", "createdAt", "updatedAt")
+      INSERT INTO "UserProblemProgress" ("userId", "problemId", "solved", "solvedAt", "notes", "bookmarked", "isManual", "createdAt", "updatedAt")
       VALUES ${valuePlaceholders.join(', ')}
       ON CONFLICT ("userId", "problemId")
       DO UPDATE SET 
         "solved" = TRUE, 
         "solvedAt" = COALESCE(EXCLUDED."solvedAt", "UserProblemProgress"."solvedAt"), 
+        "isManual" = FALSE,
         "updatedAt" = NOW()
     `;
 
@@ -305,9 +307,10 @@ export async function POST(request: Request) {
     // If username is blank but session cookie is provided, auto-detect username from cookie
     if (!username) {
       const cleanRawCookie = leetcodeSession !== undefined ? extractSessionCookie(leetcodeSession) : undefined;
+      const decryptedStoredCookie = decryptCookie(config.leetcodeSession || '');
       const activeCookie = cleanRawCookie !== undefined
         ? cleanRawCookie
-        : (config.leetcodeSession || '');
+        : decryptedStoredCookie;
 
       if (activeCookie && activeCookie.trim()) {
         try {
@@ -371,28 +374,21 @@ export async function POST(request: Request) {
     if (targetAction === 'full') {
       console.log(`Starting Full Sync for user: ${username}`);
 
-      // Clear existing solved states for THIS user to start a fresh sync
-      await prisma.userProblemProgress.updateMany({
-        where: { userId, solved: true },
-        data: { solved: false, solvedAt: null },
-      });
-      await prisma.activityLog.deleteMany({
-        where: { userId },
-      });
-
       let solvedSlugs: Set<string> = new Set();
       let latestTimestamp = 0;
       let cookieValid = false;
       let cookieWarning = '';
+      let totalOnLeetCode = 0;
       const recentSubmissionMap = new Map<string, Date>();
       let fetchedRecentSubs: LeetCodeSubmission[] = [];
       const recentTimestamps: number[] = [];
 
-      // Clean and determine session cookie to use
+      // Clean and determine session cookie to use (decrypting stored cookie if necessary)
       const cleanRawCookie = leetcodeSession !== undefined ? extractSessionCookie(leetcodeSession) : undefined;
+      const decryptedStoredCookie = decryptCookie(config.leetcodeSession || '');
       const activeCookie = cleanRawCookie !== undefined
         ? cleanRawCookie
-        : (config.leetcodeSession || '');
+        : decryptedStoredCookie;
 
       // Fetch recent accepted submissions to get real solve timestamps
       try {
@@ -426,64 +422,28 @@ export async function POST(request: Request) {
             exactSlugs.forEach(slug => solvedSlugs.add(slug));
             cookieValid = true;
             console.log(`Found exactly ${exactSlugs.length} solved question slugs using session cookie for user ${authedUser}.`);
+
+            // When full authenticated cookie sync succeeds, clear prior verified solves to reconcile, preserving manual solves!
+            await prisma.userProblemProgress.updateMany({
+              where: { userId, solved: true, isManual: false },
+              data: { solved: false, solvedAt: null },
+            });
+            await prisma.activityLog.deleteMany({
+              where: { userId },
+            });
           } catch (cookieError: any) {
             cookieWarning = cookieError.message;
             console.warn('Authenticated cookie fetch failed, falling back to public stats sync:', cookieError.message);
           }
         }
 
-        // 2. Fallback to public counts sync if cookie was not provided or failed
-        if (!cookieValid) {
-          console.log('Performing Public Stats Sync (Counts-Filler mode)...');
-          try {
-            const { easy, medium, hard } = await fetchLeetCodeStats(username);
-            console.log(`User stats on LeetCode: Easy: ${easy}, Medium: ${medium}, Hard: ${hard}`);
-
-            // Count how many we already have from recent submissions
-            let currentEasy = 0;
-            let currentMedium = 0;
-            let currentHard = 0;
-
-            if (solvedSlugs.size > 0) {
-              const currentProblems = await prisma.problem.findMany({
-                where: { titleSlug: { in: Array.from(solvedSlugs) } },
-                select: { difficulty: true },
-              });
-              for (const p of currentProblems) {
-                if (p.difficulty === 'Easy') currentEasy++;
-                if (p.difficulty === 'Medium') currentMedium++;
-                if (p.difficulty === 'Hard') currentHard++;
-              }
-            }
-
-            const neededEasy = Math.max(0, easy - currentEasy);
-            const neededMedium = Math.max(0, medium - currentMedium);
-            const neededHard = Math.max(0, hard - currentHard);
-
-            const fetchFillerSlugs = async (diff: string, count: number) => {
-              if (count <= 0) return [];
-              const rawProblems = await prisma.problem.findMany({
-                where: {
-                  difficulty: diff,
-                  titleSlug: { notIn: Array.from(solvedSlugs) },
-                },
-                orderBy: { id: 'asc' },
-                take: count,
-                select: { titleSlug: true },
-              });
-              return rawProblems.map(p => p.titleSlug);
-            };
-
-            const [fillEasy, fillMed, fillHard] = await Promise.all([
-              fetchFillerSlugs('Easy', neededEasy),
-              fetchFillerSlugs('Medium', neededMedium),
-              fetchFillerSlugs('Hard', neededHard),
-            ]);
-
-            [...fillEasy, ...fillMed, ...fillHard].forEach(slug => solvedSlugs.add(slug));
-          } catch (statsErr: any) {
-            console.warn('Could not fetch public solved stats:', statsErr.message);
-          }
+        // 2. Fetch public solved counts (for honest metrics reporting only - never fabricate problems)
+        try {
+          const { easy, medium, hard } = await fetchLeetCodeStats(username);
+          totalOnLeetCode = easy + medium + hard;
+          console.log(`User public stats on LeetCode: Easy: ${easy}, Medium: ${medium}, Hard: ${hard} (Total: ${totalOnLeetCode})`);
+        } catch (statsErr: any) {
+          console.warn('Could not fetch public solved stats:', statsErr.message);
         }
 
         // Find all matched problems in our database catalog
@@ -552,34 +512,60 @@ export async function POST(request: Request) {
         });
       }
 
-      // Update sync config in DB: If user provided a cookie, persist it. If not, preserve existing cookie.
-      const storedCookie = cleanRawCookie !== undefined ? cleanRawCookie : (config.leetcodeSession || '');
+      // Update sync config in DB: If user provided a cookie, persist it encrypted. If not, preserve existing cookie.
+      const cookieToStore = cleanRawCookie !== undefined
+        ? (cleanRawCookie ? encryptCookie(cleanRawCookie) : '')
+        : (config.leetcodeSession || '');
 
       await prisma.userSyncConfig.upsert({
         where: { userId },
         create: {
           userId,
           leetcodeUser: username,
-          leetcodeSession: storedCookie,
+          leetcodeSession: cookieToStore,
           lastSyncedAt: new Date(),
           lastSubmissionTimestamp: latestTimestamp,
           isDemoMode: false,
         },
         update: {
           leetcodeUser: username,
-          leetcodeSession: storedCookie,
+          leetcodeSession: cookieToStore,
           lastSyncedAt: new Date(),
           lastSubmissionTimestamp: latestTimestamp,
           isDemoMode: false,
         },
       });
 
+      const matchedCount = matchedProblems.length;
+      const unmatchedCount = Math.max(0, totalOnLeetCode - matchedCount);
+
+      const manualCount = await prisma.userProblemProgress.count({
+        where: { userId, solved: true, isManual: true },
+      });
+
+      let syncMessage = '';
+      if (cookieValid) {
+        syncMessage = `Full Sync complete: ${matchedCount} problems verified and matched to catalog.`;
+      } else if (totalOnLeetCode > 0) {
+        syncMessage = `Synced ${matchedCount} recent problems from LeetCode. ${unmatchedCount} older solves require cookie or manual check.`;
+      } else {
+        syncMessage = `Synced ${matchedCount} problems from your recent LeetCode activity.`;
+      }
+
+      if (manualCount > 0) {
+        syncMessage += ` (${manualCount} manual checkmarks preserved)`;
+      }
+
       return NextResponse.json({
         success: true,
         action: 'full',
-        syncedCount: matchedProblems.length,
+        syncedCount: matchedCount,
         recentCount: matchedRecentProblems.length,
-        hasSessionCookie: !!storedCookie,
+        totalOnLeetCode,
+        unmatchedCount,
+        manualCount,
+        message: syncMessage,
+        hasSessionCookie: !!cookieToStore,
         cookieValid: cookieValid,
         cookieWarning: cookieWarning || undefined,
         lastSubmissionTimestamp: latestTimestamp,

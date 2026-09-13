@@ -36,6 +36,7 @@ export async function GET(
       inMoreThanSixMonths: boolean;
       inAll: boolean;
       solved: boolean | null;
+      isManual: boolean | null;
       notes: string | null;
       bookmarked: boolean | null;
     }
@@ -55,6 +56,7 @@ export async function GET(
             cp."inMoreThanSixMonths",
             cp."inAll",
             COALESCE(upp.solved, FALSE) as solved,
+            COALESCE(upp."isManual", FALSE) as "isManual",
             COALESCE(upp.notes, '') as notes,
             COALESCE(upp.bookmarked, FALSE) as bookmarked
           FROM "CompanyProblem" cp
@@ -77,6 +79,7 @@ export async function GET(
             cp."inMoreThanSixMonths",
             cp."inAll",
             FALSE as solved,
+            FALSE as "isManual",
             '' as notes,
             FALSE as bookmarked
           FROM "CompanyProblem" cp
@@ -92,6 +95,7 @@ export async function GET(
       url: row.url,
       difficulty: row.difficulty,
       solved: Boolean(row.solved),
+      isManual: Boolean(row.isManual),
       notes: row.notes || '',
       bookmarked: Boolean(row.bookmarked),
       frequency: Number(row.frequency),

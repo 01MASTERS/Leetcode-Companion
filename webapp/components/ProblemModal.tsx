@@ -9,6 +9,7 @@ import { X, ExternalLink, Building2, Star, Save, Clipboard, CheckCircle, Circle 
 import { getDifficultyColor, formatPercent } from '@/utils/helpers';
 import AnimatedList from '@/components/AnimatedList';
 import { Analytics } from '@/lib/analytics';
+import { useGuestProgress, updateGuestProblem } from '@/lib/guest-storage';
 
 interface ProblemDetail {
   id: number;
@@ -16,6 +17,7 @@ interface ProblemDetail {
   url: string;
   difficulty: string;
   solved: boolean;
+  isManual?: boolean;
   notes: string;
   bookmarked: boolean;
   companies: Array<{
@@ -33,9 +35,11 @@ export default function ProblemModal() {
   const { selectedProblemId, setSelectedProblemId, addToast, openGuestGate } = useTrackerStore();
   const [notesText, setNotesText] = useState('');
   const [isSavingNotes, setIsSavingNotes] = useState(false);
+  const guestProgress = useGuestProgress();
+  const guestItem = selectedProblemId ? guestProgress[selectedProblemId] : undefined;
 
   // Fetch problem details
-  const { data: problem, isLoading, error } = useQuery<ProblemDetail>({
+  const { data: rawProblem, isLoading, error } = useQuery<ProblemDetail>({
     queryKey: ['problem', selectedProblemId, { isGuest }],
     queryFn: async () => {
       if (!selectedProblemId) return null;
@@ -48,6 +52,18 @@ export default function ProblemModal() {
 
   const isProblemLoading = isLoading || status === 'loading';
 
+  // Merge server data with local guest overrides if guest
+  const problem: ProblemDetail | null = rawProblem
+    ? {
+        ...rawProblem,
+        solved: isGuest && guestItem?.solved !== undefined ? Boolean(guestItem.solved) : rawProblem.solved,
+        isManual: isGuest && guestItem?.solved !== undefined ? true : Boolean(rawProblem.isManual),
+        bookmarked:
+          isGuest && guestItem?.bookmarked !== undefined ? Boolean(guestItem.bookmarked) : rawProblem.bookmarked,
+        notes: isGuest && guestItem?.notes !== undefined ? (guestItem.notes || '') : rawProblem.notes,
+      }
+    : null;
+
   // Sync state notes when data is loaded
   useEffect(() => {
     if (problem) {
@@ -58,11 +74,15 @@ export default function ProblemModal() {
         difficulty: problem.difficulty,
       });
     }
-  }, [problem?.id]);
+  }, [problem?.id, isGuest ? guestItem?.notes : null]);
 
   // Mutation to toggle bookmark
   const toggleBookmarkMutation = useMutation({
     mutationFn: async (bookmarked: boolean) => {
+      if (isGuest && selectedProblemId) {
+        updateGuestProblem(selectedProblemId, { bookmarked });
+        return { bookmarked };
+      }
       const res = await fetch(`/api/problems/${selectedProblemId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -81,7 +101,10 @@ export default function ProblemModal() {
       queryClient.invalidateQueries({ queryKey: ['company'] });
       queryClient.invalidateQueries({ queryKey: ['companies'] });
       queryClient.invalidateQueries({ queryKey: ['stats'] });
-      addToast(data.bookmarked ? 'Added problem to Bookmarks' : 'Removed from Bookmarks', 'success');
+      addToast(
+        data.bookmarked ? 'Added problem to Bookmarks' : 'Removed from Bookmarks',
+        'success'
+      );
       if (selectedProblemId) {
         Analytics.bookmarkToggle({
           id: selectedProblemId,
@@ -103,6 +126,10 @@ export default function ProblemModal() {
   // Mutation to toggle solved
   const toggleSolvedMutation = useMutation({
     mutationFn: async (solved: boolean) => {
+      if (isGuest && selectedProblemId) {
+        updateGuestProblem(selectedProblemId, { solved, isManual: true });
+        return { solved, isManual: true };
+      }
       const res = await fetch(`/api/problems/${selectedProblemId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -116,12 +143,52 @@ export default function ProblemModal() {
       }
       return res.json();
     },
+    onMutate: async (solved: boolean) => {
+      await queryClient.cancelQueries({ queryKey: ['problem', selectedProblemId] });
+      const previousProblem = queryClient.getQueryData(['problem', selectedProblemId, { isGuest }]);
+      queryClient.setQueryData(['problem', selectedProblemId, { isGuest }], (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          solved,
+          // Optimistically show green/verified; backend will reconcile to blue if manual
+          isManual: solved ? false : false,
+        };
+      });
+      return { previousProblem };
+    },
+    onError: (err: any, variables, context) => {
+      if (context?.previousProblem) {
+        queryClient.setQueryData(['problem', selectedProblemId, { isGuest }], context.previousProblem);
+      }
+      if (err.isGuest || err.message?.includes('Sign in with Google')) {
+        openGuestGate('Sign in with Google to sync and track your solved problems.');
+      } else {
+        addToast(err.message || 'Failed to update solved status', 'error');
+      }
+    },
     onSuccess: (data) => {
+      // Reconcile problem cache with backend response
+      queryClient.setQueryData(['problem', selectedProblemId, { isGuest }], (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          solved: data.solved,
+          isManual: data.isManual,
+        };
+      });
       queryClient.invalidateQueries({ queryKey: ['problem', selectedProblemId] });
       queryClient.invalidateQueries({ queryKey: ['company'] });
       queryClient.invalidateQueries({ queryKey: ['companies'] });
       queryClient.invalidateQueries({ queryKey: ['stats'] });
-      addToast(data.solved ? 'Verified with LeetCode & marked as solved! 🎉' : 'Marked problem as unsolved', 'success');
+      addToast(
+        data.solved
+          ? data.isManual
+            ? 'Marked as manual'
+            : 'Solved & verified'
+          : 'Marked as unsolved',
+        'success'
+      );
       if (selectedProblemId) {
         Analytics.solveToggle({
           id: selectedProblemId,
@@ -131,19 +198,16 @@ export default function ProblemModal() {
         });
       }
     },
-    onError: (err: any) => {
-      if (err.isGuest || err.message?.includes('Sign in with Google')) {
-        openGuestGate('Sign in with Google to sync and track your solved problems.');
-      } else {
-        addToast(err.message || 'Failed to update solved status', 'error');
-      }
-    },
   });
 
   // Mutation to save notes
   const saveNotesMutation = useMutation({
     mutationFn: async (notes: string) => {
       setIsSavingNotes(true);
+      if (isGuest && selectedProblemId) {
+        updateGuestProblem(selectedProblemId, { notes });
+        return { notes };
+      }
       const res = await fetch(`/api/problems/${selectedProblemId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -204,11 +268,18 @@ export default function ProblemModal() {
                     {problem.difficulty}
                   </span>
                 )}
+
                 {problem && (
                   problem.solved ? (
-                    <span className="px-2 sm:px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 dark:bg-emerald-500/10 dark:border-emerald-500/20 dark:text-emerald-400 text-[10px] sm:text-xs font-semibold select-none flex items-center gap-1">
-                      <CheckCircle className="h-3 sm:h-3.5 w-3 sm:w-3.5" /> Solved
-                    </span>
+                    problem.isManual ? (
+                      <span className="px-2 sm:px-2.5 py-0.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 dark:bg-blue-500/10 dark:border-blue-500/20 dark:text-blue-400 text-[10px] sm:text-xs font-semibold select-none flex items-center gap-1" title="Self-reported solve">
+                        <CheckCircle className="h-3 sm:h-3.5 w-3 sm:w-3.5" /> Marked Solved
+                      </span>
+                    ) : (
+                      <span className="px-2 sm:px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 dark:bg-emerald-500/10 dark:border-emerald-500/20 dark:text-emerald-400 text-[10px] sm:text-xs font-semibold select-none flex items-center gap-1" title="Verified against LeetCode accepted submissions">
+                        <CheckCircle className="h-3 sm:h-3.5 w-3 sm:w-3.5" /> Solved & Verified
+                      </span>
+                    )
                   ) : (
                     <span className="px-2 sm:px-2.5 py-0.5 rounded-full bg-muted/60 border border-border text-muted-foreground text-[10px] sm:text-xs font-semibold select-none flex items-center gap-1">
                       <Circle className="h-3 sm:h-3.5 w-3 sm:w-3.5 text-muted-foreground/50" /> Unsolved
@@ -276,24 +347,27 @@ export default function ProblemModal() {
                 <div className="bg-muted/40 border border-border p-4 rounded-xl flex items-center justify-between gap-3">
                   <button
                     onClick={() => toggleSolvedMutation.mutate(!problem.solved)}
-                    disabled={toggleSolvedMutation.isPending}
                     className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl border text-sm font-bold transition-all cursor-pointer ${
                       problem.solved
-                        ? 'border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-400 dark:hover:bg-emerald-500/20'
+                        ? problem.isManual
+                          ? 'border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:border-blue-500/40 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20'
+                          : 'border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-400 dark:hover:bg-emerald-500/20'
                         : 'border-border bg-card text-foreground hover:bg-muted/80'
                     }`}
-                    title={problem.solved ? 'Click to mark as unsolved' : 'Click to verify & mark as solved'}
+                    title={problem.solved ? 'Click to mark as unsolved' : 'Click to mark as solved'}
                   >
-                    {toggleSolvedMutation.isPending ? (
-                      <>
-                        <div className="h-4 w-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-                        <span className="text-xs">Verifying with LeetCode...</span>
-                      </>
-                    ) : problem.solved ? (
-                      <>
-                        <CheckCircle className="h-4 w-4 text-emerald-600 dark:text-emerald-500" />
-                        <span>Solved ✓</span>
-                      </>
+                    {problem.solved ? (
+                      problem.isManual ? (
+                        <>
+                          <CheckCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                          <span>Marked Solved</span>
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="h-4 w-4 text-emerald-600 dark:text-emerald-500" />
+                          <span>Solved & Verified ✓</span>
+                        </>
+                      )
                     ) : (
                       <>
                         <Circle className="h-4 w-4 text-muted-foreground" />

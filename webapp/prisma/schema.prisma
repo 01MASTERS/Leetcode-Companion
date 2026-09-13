@@ -135,6 +135,7 @@ model UserProblemProgress {
   solvedAt   DateTime?
   notes      String?   @db.Text
   bookmarked Boolean   @default(false)
+  isManual   Boolean   @default(false)
 
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
@@ -147,6 +148,7 @@ model UserProblemProgress {
   @@index([problemId])
   @@index([userId, solved])
   @@index([userId, bookmarked])
+  @@index([userId, isManual])
 }
 
 model UserStats {

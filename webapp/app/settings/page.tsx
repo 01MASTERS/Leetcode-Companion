@@ -171,13 +171,12 @@ export default function SettingsPage() {
         <p className="text-xs sm:text-sm text-muted-foreground mt-1">Configure and manage your LC tracker account settings.</p>
       </div>
 
-      {/* Guest Mode Notice */}
+      {/* Sign-in Notice */}
       {status === 'unauthenticated' && (
-        <div className="glass border border-amber-300 bg-amber-50/80 dark:border-amber-500/25 dark:bg-amber-500/5 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="glass border border-border rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
-              You are browsing in Guest Mode
+            <h4 className="text-sm font-bold text-foreground">
+              Sign in to sync your profile
             </h4>
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
               Sign in with Google to link your LeetCode profile, sync solves across devices, and save personal notes.
@@ -293,7 +292,7 @@ export default function SettingsPage() {
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-200 text-amber-950 border border-amber-300 dark:bg-amber-500/20 dark:border-transparent dark:text-amber-300">100% Exact Sync</span>
               </div>
               <p className="text-xs text-stone-800 dark:text-zinc-300 leading-relaxed font-medium">
-                Public profile sync can have caching delays and rate limits on recent solves. Adding your session cookie fetches your authenticated submission log instantly and accurately. It is securely encrypted and completely optional.
+                LeetCode only exposes your 20 most recent submissions to the public. Adding your session cookie allows syncing your complete lifetime history of solved questions across all company tracks. It is completely optional.
               </p>
             </div>
 
