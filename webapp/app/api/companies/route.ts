@@ -29,7 +29,7 @@ export async function GET(request: Request) {
     let companiesRaw: CompanyRawRow[] = [];
 
     if (userId) {
-      // Authenticated User Query
+      // Authenticated User Query with optimized pre-aggregated CTEs
       let orderByClause = 'ORDER BY "completionPercentage" DESC, "solvedProblems" DESC, c.name ASC';
       if (sort === 'alphabetical') {
         orderByClause = 'ORDER BY c.name ASC';
@@ -39,55 +39,70 @@ export async function GET(request: Request) {
         orderByClause = 'ORDER BY "remainingProblems" DESC, c.name ASC';
       }
 
-      let havingClause = 'HAVING 1=1';
+      let filterClause = '';
       if (filter === 'completed') {
-        havingClause = 'HAVING SUM(CASE WHEN upp.solved = TRUE THEN 1 ELSE 0 END) = COUNT(cp."problemId") AND COUNT(cp."problemId") > 0';
+        filterClause = 'AND COALESCE(us.solved_count, 0) = COALESCE(ct.total_count, 0) AND COALESCE(ct.total_count, 0) > 0';
       } else if (filter === 'in-progress') {
-        havingClause = 'HAVING SUM(CASE WHEN upp.solved = TRUE THEN 1 ELSE 0 END) > 0 AND SUM(CASE WHEN upp.solved = TRUE THEN 1 ELSE 0 END) < COUNT(cp."problemId")';
+        filterClause = 'AND COALESCE(us.solved_count, 0) > 0 AND COALESCE(us.solved_count, 0) < COALESCE(ct.total_count, 0)';
       } else if (filter === 'not-started') {
-        havingClause = 'HAVING SUM(CASE WHEN upp.solved = TRUE THEN 1 ELSE 0 END) = 0';
+        filterClause = 'AND COALESCE(us.solved_count, 0) = 0';
       }
 
       companiesRaw = await prisma.$queryRawUnsafe<CompanyRawRow[]>(`
+        WITH user_solved AS (
+          SELECT cp."companyId", COUNT(cp."problemId")::bigint as solved_count
+          FROM "UserProblemProgress" upp
+          JOIN "CompanyProblem" cp ON cp."problemId" = upp."problemId"
+          WHERE upp."userId" = $1 AND upp.solved = TRUE
+          GROUP BY cp."companyId"
+        ),
+        company_totals AS (
+          SELECT "companyId", COUNT("problemId")::bigint as total_count
+          FROM "CompanyProblem"
+          GROUP BY "companyId"
+        )
         SELECT 
           c.id,
           c.name,
           c.slug,
-          COUNT(cp."problemId") as "totalProblems",
-          SUM(CASE WHEN upp.solved = TRUE THEN 1 ELSE 0 END) as "solvedProblems",
-          CASE WHEN COUNT(cp."problemId") > 0 
-               THEN (CAST(SUM(CASE WHEN upp.solved = TRUE THEN 1 ELSE 0 END) AS FLOAT) / COUNT(cp."problemId")) * 100 
-               ELSE 0 END as "completionPercentage",
-          (COUNT(cp."problemId") - SUM(CASE WHEN upp.solved = TRUE THEN 1 ELSE 0 END)) as "remainingProblems"
+          COALESCE(ct.total_count, 0::bigint) as "totalProblems",
+          COALESCE(us.solved_count, 0::bigint) as "solvedProblems",
+          CASE WHEN COALESCE(ct.total_count, 0) > 0 
+               THEN (CAST(COALESCE(us.solved_count, 0) AS FLOAT) / ct.total_count) * 100 
+               ELSE 0.0 END as "completionPercentage",
+          (COALESCE(ct.total_count, 0::bigint) - COALESCE(us.solved_count, 0::bigint)) as "remainingProblems"
         FROM "Company" c
-        LEFT JOIN "CompanyProblem" cp ON c.id = cp."companyId"
-        LEFT JOIN "UserProblemProgress" upp ON cp."problemId" = upp."problemId" AND upp."userId" = $1
+        LEFT JOIN company_totals ct ON c.id = ct."companyId"
+        LEFT JOIN user_solved us ON c.id = us."companyId"
         WHERE LOWER(c.name) LIKE $2
-        GROUP BY c.id, c.name, c.slug
-        ${havingClause}
+        ${filterClause}
         ${orderByClause}
         LIMIT $3 OFFSET $4
       `, userId, searchPattern, limit, offset);
     } else {
       // Guest Mode Query (Optimized catalog totals, 0 solved on server)
-      let orderByClause = 'ORDER BY COUNT(cp."problemId") DESC, c.name ASC';
+      let orderByClause = 'ORDER BY COALESCE(ct.total_count, 0) DESC, c.name ASC';
       if (sort === 'alphabetical') {
         orderByClause = 'ORDER BY c.name ASC';
       }
 
       companiesRaw = await prisma.$queryRawUnsafe<CompanyRawRow[]>(`
+        WITH company_totals AS (
+          SELECT "companyId", COUNT("problemId")::bigint as total_count
+          FROM "CompanyProblem"
+          GROUP BY "companyId"
+        )
         SELECT 
           c.id,
           c.name,
           c.slug,
-          COUNT(cp."problemId") as "totalProblems",
+          COALESCE(ct.total_count, 0::bigint) as "totalProblems",
           0::bigint as "solvedProblems",
           0.0::float8 as "completionPercentage",
-          COUNT(cp."problemId") as "remainingProblems"
+          COALESCE(ct.total_count, 0::bigint) as "remainingProblems"
         FROM "Company" c
-        LEFT JOIN "CompanyProblem" cp ON c.id = cp."companyId"
+        LEFT JOIN company_totals ct ON c.id = ct."companyId"
         WHERE LOWER(c.name) LIKE $1
-        GROUP BY c.id, c.name, c.slug
         ${orderByClause}
         LIMIT $2 OFFSET $3
       `, searchPattern, limit, offset);

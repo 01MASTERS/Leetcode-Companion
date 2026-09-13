@@ -31,8 +31,20 @@ export default function CompanyPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number | 'all'>(50);
 
-  // Fetch company details
-  const { data: company, isLoading, error } = useQuery<CompanyDetail>({
+  // Fetch base static catalog (ultra-fast from Edge CDN: < 35ms)
+  const { data: baseCatalog } = useQuery<CompanyDetail>({
+    queryKey: ['company-catalog', slug],
+    queryFn: async () => {
+      const res = await fetch(`/api/companies/${slug}?guest=1`);
+      if (!res.ok) throw new Error('Company not found');
+      return res.json();
+    },
+    enabled: status !== 'loading',
+    staleTime: 1000 * 60 * 60, // 1 hour Edge CDN / client sync
+  });
+
+  // Fetch full company details (includes personal solved/bookmarked state for authenticated users)
+  const { data: userCompany, isLoading, error } = useQuery<CompanyDetail>({
     queryKey: ['company', slug, { isGuest }],
     queryFn: async () => {
       const res = await fetch(`/api/companies/${slug}${isGuest ? '?guest=1' : ''}`);
@@ -40,7 +52,10 @@ export default function CompanyPage() {
       return res.json();
     },
     enabled: status !== 'loading',
+    placeholderData: isGuest ? undefined : (previousData) => previousData || baseCatalog,
   });
+
+  const company = userCompany || (isGuest ? undefined : baseCatalog);
 
   // Reset page whenever search, filters, or page size change
   React.useEffect(() => {
@@ -135,7 +150,7 @@ export default function CompanyPage() {
     setSelectedProblemId(problem.id);
   };
 
-  if (isLoading || status === 'loading') {
+  if ((isLoading && !company) || (status === 'loading' && !company)) {
     return (
       <div className="p-8 flex flex-col gap-6 max-w-7xl mx-auto text-foreground">
         <div className="h-6 w-24 bg-muted rounded-lg shimmer" />

@@ -65,8 +65,20 @@ export default function Dashboard() {
     enabled: status !== 'loading',
   });
 
+  // Base company catalog (cached at Edge CDN for 1 hour: < 5ms)
+  const { data: baseCatalog } = useQuery<Company[]>({
+    queryKey: ['companies-base-catalog', { page: 1, limit: '60' }],
+    queryFn: async () => {
+      const res = await fetch(`/api/companies?page=1&limit=60&guest=1`);
+      if (!res.ok) throw new Error('Failed to load companies');
+      return res.json();
+    },
+    enabled: status !== 'loading',
+    staleTime: 1000 * 60 * 60, // 1 hour Edge CDN / client cache
+  });
+
   // Fetch companies with query variables
-  const { data: companies, isLoading } = useQuery<Company[]>({
+  const { data: userCompanies, isLoading } = useQuery<Company[]>({
     queryKey: ['companies', { search: globalSearch, filter: dashboardFilter, sort: dashboardSort, page, isGuest }],
     queryFn: async () => {
       const params = new URLSearchParams({
@@ -84,7 +96,10 @@ export default function Dashboard() {
       return res.json();
     },
     enabled: status !== 'loading',
+    placeholderData: (previousData) => previousData || (page === 1 && !globalSearch && dashboardFilter === 'all' ? baseCatalog : undefined),
   });
+
+  const companies = userCompanies || (page === 1 && !globalSearch && dashboardFilter === 'all' ? baseCatalog : undefined);
 
   const handleContinueLearning = (e: React.MouseEvent, company: Company) => {
     e.stopPropagation(); // Prevent card navigation click
@@ -236,7 +251,7 @@ export default function Dashboard() {
       </div>
 
       {/* Companies Cards Grid */}
-      {isLoading || status === 'loading' ? (
+      {(isLoading && !companies) || (status === 'loading' && !companies) ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {[...Array(9)].map((_, i) => (
             <div key={i} className="h-44 bg-muted rounded-2xl shimmer" />
